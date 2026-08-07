@@ -1,0 +1,53 @@
+name: Generate Shadowrocket Config
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - automation-test
+    paths:
+      - "Clash-Li.ini"
+      - "scripts/generate_shadowrocket.py"
+      - ".github/workflows/generate-shadowrocket.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate Shadowrocket config
+        run: |
+          python scripts/generate_shadowrocket.py
+
+      - name: Show generated file
+        run: |
+          echo "===== generated files ====="
+          ls -la generated
+          echo "===== Shadowrocket.conf preview ====="
+          head -n 40 generated/Shadowrocket.conf
+
+      - name: Commit generated config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add generated/Shadowrocket.conf
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Auto-generate Shadowrocket config"
+            git push
+          fi
