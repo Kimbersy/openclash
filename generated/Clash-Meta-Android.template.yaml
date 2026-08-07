@@ -1,0 +1,784 @@
+# ==================================================
+# AUTO-GENERATED FILE
+# Source: Clash-Li.ini
+#
+# 请勿手工修改此文件。
+# 修改 Clash-Li.ini 后由 GitHub Actions 自动生成。
+# ==================================================
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+ipv6: true
+unified-delay: true
+tcp-concurrent: true
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+proxy-providers:
+  Airport:
+    type: http
+    url: '__AIRPORT_URL__'
+    path: './proxy_providers/Airport.yaml'
+    interval: 86400
+    header:
+      User-Agent:
+        - 'clash.meta'
+    health-check:
+      enable: true
+      url: 'https://www.gstatic.com/generate_204'
+      interval: 180
+      timeout: 5000
+      lazy: true
+      expected-status: 204
+
+proxy-groups:
+  - name: '🤖 AI'
+    type: select
+    proxies:
+      - '🇸🇬新加坡'
+      - '🤖 美国-Gemini'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇹🇼台湾'
+      - 'DIRECT'
+      - '🔵 电信优选'
+      - '🔴 联通优选'
+      - '📱 移动优选'
+      - '🇩🇪德国'
+      - '🇰🇷韩国'
+      - '⚠️ 特殊计费节点'
+      - 'REJECT'
+  - name: '💻 GitHub'
+    type: select
+    proxies:
+      - '⚡ 低延迟'
+      - '🇭🇰香港'
+      - '🇯🇵日本'
+      - '🇸🇬新加坡'
+      - '🇺🇸美国'
+      - '🔵 电信优选'
+      - '🔴 联通优选'
+      - '📱 移动优选'
+      - '所有'
+      - '🇹🇼台湾'
+      - '🇰🇷韩国'
+      - '🇩🇪德国'
+      - '其他'
+      - 'DIRECT'
+      - 'REJECT'
+  - name: '🎵 TikTok'
+    type: select
+    proxies:
+      - '🇺🇸美国'
+      - '🇯🇵日本'
+      - '🇸🇬新加坡'
+      - '其他'
+      - '⚠️ 特殊计费节点'
+      - 'DIRECT'
+      - 'REJECT'
+  - name: '✈️ Telegram'
+    type: select
+    proxies:
+      - '⚡ 低延迟'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🔵 电信优选'
+      - '🔴 联通优选'
+      - '📱 移动优选'
+      - '所有'
+      - '🇹🇼台湾'
+      - '🇰🇷韩国'
+      - '🇩🇪德国'
+      - '其他'
+      - 'DIRECT'
+      - 'REJECT'
+  - name: '📺 流媒体'
+    type: select
+    proxies:
+      - '📶 高带宽'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '🇯🇵日本'
+      - '🇹🇼台湾'
+      - '🇺🇸美国'
+      - '🔵 电信优选'
+      - '🔴 联通优选'
+      - '📱 移动优选'
+      - '所有'
+      - '🇰🇷韩国'
+      - '🇩🇪德国'
+      - '其他'
+      - '🏷️ 优惠倍率节点'
+      - 'DIRECT'
+      - 'REJECT'
+  - name: '🏰 Disney+'
+    type: select
+    proxies:
+      - '🇸🇬新加坡'
+      - '🇭🇰香港'
+      - '🇹🇼台湾'
+      - 'REJECT'
+  - name: '🍎 AppleTV+'
+    type: select
+    proxies:
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '🇯🇵日本'
+      - '🇹🇼台湾'
+      - '📶 高带宽'
+      - 'REJECT'
+  - name: '🟢 Spotify'
+    type: select
+    proxies:
+      - '🇹🇼台湾'
+      - '🇭🇰香港'
+      - '🇯🇵日本'
+      - '🇸🇬新加坡'
+      - '🇺🇸美国'
+      - '🇩🇪德国'
+      - 'REJECT'
+  - name: '💳 PayPal'
+    type: select
+    proxies:
+      - '🇺🇸美国'
+      - '🇩🇪德国'
+      - '🇸🇬新加坡'
+      - '🇯🇵日本'
+      - '🇭🇰香港'
+      - 'REJECT'
+  - name: '🎮 游戏'
+    type: select
+    proxies:
+      - '🎮 游戏节点'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '所有'
+      - 'REJECT'
+  - name: '🎮 PlayStation'
+    type: select
+    proxies:
+      - '🎮 游戏'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '所有'
+      - 'REJECT'
+  - name: '🎮 Xbox'
+    type: select
+    proxies:
+      - '🎮 游戏'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '所有'
+      - 'REJECT'
+  - name: '🎮 Nintendo'
+    type: select
+    proxies:
+      - '🎮 游戏'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '所有'
+      - 'REJECT'
+  - name: '🧿 Steam'
+    type: select
+    proxies:
+      - '🎮 游戏'
+      - '🇯🇵日本'
+      - '🇺🇸美国'
+      - '🇭🇰香港'
+      - '🇸🇬新加坡'
+      - '所有'
+      - 'REJECT'
+  - name: '🌍 国外'
+    type: select
+    proxies:
+      - '🇯🇵日本'
+      - '🇸🇬新加坡'
+      - '🔵 电信优选'
+      - '🔴 联通优选'
+      - '📱 移动优选'
+      - '🇭🇰香港'
+      - '🇺🇸美国'
+      - '🇩🇪德国'
+      - '🇹🇼台湾'
+      - '🇰🇷韩国'
+      - '🏷️ 优惠倍率节点'
+      - '其他'
+      - 'REJECT'
+  - name: '🏠 国内'
+    type: select
+    proxies:
+      - 'DIRECT'
+      - 'REJECT'
+  - name: '🔵 电信优选'
+    type: select
+    proxies:
+      - '🔵 电信优选-自动'
+      - 'REJECT'
+  - name: '🔴 联通优选'
+    type: select
+    proxies:
+      - '🔴 联通优选-自动'
+      - 'REJECT'
+  - name: '📱 移动优选'
+    type: select
+    proxies:
+      - '📱 移动优选-自动'
+      - 'REJECT'
+  - name: '⚠️ 特殊计费节点-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '((((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化)))'
+    exclude-filter: '(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '⚠️ 特殊计费节点'
+    type: select
+    proxies:
+      - '⚠️ 特殊计费节点-自动'
+    use:
+      - 'Airport'
+    filter: '((((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化)))'
+    exclude-filter: '(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))'
+  - name: '🏷️ 优惠倍率节点-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🏷️ 优惠倍率节点'
+    type: select
+    proxies:
+      - '🏷️ 优惠倍率节点-自动'
+    use:
+      - 'Airport'
+    filter: '(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))'
+  - name: '🎮 游戏节点-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '((游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)|(限速5M))'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🎮 游戏节点'
+    type: select
+    proxies:
+      - '🎮 游戏节点-自动'
+    use:
+      - 'Airport'
+    filter: '((游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)|(限速5M))'
+  - name: '⚡ 低延迟-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '((低延迟)|(低延時)|(延迟优化)|(Low[ -]?Latency)|(LowLatency)|(Low[ -]?Delay)|(LowDelay)|(low[ -]?ping)|(Low[ -]?Ping)|(低Ping)|(低 ping))'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '⚡ 低延迟-兜底'
+    type: fallback
+    proxies:
+      - '⚡ 低延迟-自动'
+      - '所有-自动'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    lazy: true
+    expected-status: 204
+  - name: '⚡ 低延迟'
+    type: select
+    proxies:
+      - '⚡ 低延迟-兜底'
+    use:
+      - 'Airport'
+    filter: '((低延迟)|(低延時)|(延迟优化)|(Low[ -]?Latency)|(LowLatency)|(Low[ -]?Delay)|(LowDelay)|(low[ -]?ping)|(Low[ -]?Ping)|(低Ping)|(低 ping))'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '📶 高带宽-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '((高带宽)|(高帶寬)|(大带宽)|(大帶寬)|(High[ -]?Bandwidth)|(HighBandwidth)|(带宽优化)|(影音专线)|(流媒体专线)|(Streaming)|(IEPL专线))'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '📶 高带宽-兜底'
+    type: fallback
+    proxies:
+      - '📶 高带宽-自动'
+      - '⚡ 低延迟-自动'
+      - '所有-自动'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    lazy: true
+    expected-status: 204
+  - name: '📶 高带宽'
+    type: select
+    proxies:
+      - '📶 高带宽-兜底'
+    use:
+      - 'Airport'
+    filter: '((高带宽)|(高帶寬)|(大带宽)|(大帶寬)|(High[ -]?Bandwidth)|(HighBandwidth)|(带宽优化)|(影音专线)|(流媒体专线)|(Streaming)|(IEPL专线))'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🔵 电信优选-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(电信)'
+    exclude-filter: '(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🔴 联通优选-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(联通)'
+    exclude-filter: '(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '📱 移动优选-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(移动)'
+    exclude-filter: '(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '所有-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '所有'
+    type: select
+    proxies:
+      - '所有-自动'
+    use:
+      - 'Airport'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🇭🇰香港-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(香港|HK|Hong Kong|🇭🇰|HongKong|广港)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇭🇰香港'
+    type: select
+    proxies:
+      - '🇭🇰香港-自动'
+    use:
+      - 'Airport'
+    filter: '(香港|HK|Hong Kong|🇭🇰|HongKong|广港)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🇹🇼台湾-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(台湾|台灣|TW|Tai Wan|🇹🇼|TaiWan|Taiwan|广台)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇹🇼台湾'
+    type: select
+    proxies:
+      - '🇹🇼台湾-自动'
+    use:
+      - 'Airport'
+    filter: '(台湾|台灣|TW|Tai Wan|🇹🇼|TaiWan|Taiwan|广台)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🇯🇵日本-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(日本|JP|东京|大阪|埼玉|🇯🇵|Japan|广日)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇯🇵日本'
+    type: select
+    proxies:
+      - '🇯🇵日本-自动'
+    use:
+      - 'Airport'
+    filter: '(日本|JP|东京|大阪|埼玉|🇯🇵|Japan|广日)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🇸🇬新加坡-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(新加坡|SG|坡|狮城|🇸🇬|Singapore|广新)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇸🇬新加坡'
+    type: select
+    proxies:
+      - '🇸🇬新加坡-自动'
+    use:
+      - 'Airport'
+    filter: '(新加坡|SG|坡|狮城|🇸🇬|Singapore|广新)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🇰🇷韩国-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(韩国|韓國|KR|首尔|春川|🇰🇷|Korea|广韩)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇰🇷韩国'
+    type: select
+    proxies:
+      - '🇰🇷韩国-自动'
+    use:
+      - 'Airport'
+    filter: '(韩国|韓國|KR|首尔|春川|🇰🇷|Korea|广韩)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+  - name: '🤖 美国-Gemini-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(美国|US|纽约|波特兰|达拉斯|凤凰城|费利蒙|硅谷|拉斯|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|广美).*(Gemini)'
+    exclude-filter: '(([2-9]|[1-9][0-9]+)\s*[xX×])|([xX×]\s*([2-9]|[1-9][0-9]+))|(([2-9]|[1-9][0-9]+)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化)|(限速5M)|(Tomorin)|(高松灯)|(0\.5\s*[xX×])|([xX×]\s*0\.5)|(0\.5\s*倍)|(半价)|(5折)|(五折)|(50%专线)|(50％专线)|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🤖 美国-Gemini'
+    type: select
+    proxies:
+      - '🤖 美国-Gemini-自动'
+    use:
+      - 'Airport'
+    filter: '(美国|US|纽约|波特兰|达拉斯|凤凰城|费利蒙|硅谷|拉斯|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|广美).*(Gemini)'
+    exclude-filter: '(([2-9]|[1-9][0-9]+)\s*[xX×])|([xX×]\s*([2-9]|[1-9][0-9]+))|(([2-9]|[1-9][0-9]+)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化)|(限速5M)|(Tomorin)|(高松灯)|(0\.5\s*[xX×])|([xX×]\s*0\.5)|(0\.5\s*倍)|(半价)|(5折)|(五折)|(50%专线)|(50％专线)|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+  - name: '🇺🇸美国-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(美国|US|纽约|波特兰|达拉斯|凤凰城|费利蒙|硅谷|拉斯|洛杉|圣何塞|圣克拉|西雅|芝加|🇺🇸|United States|广美)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)|(游戏)|(Game)|(Gaming)|(联机)|(主机)|(电竞)|(PSN)|(PlayStation)|(Xbox)|(Nintendo)|(Switch)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇺🇸美国'
+    type: select
+    proxies:
+      - '🇺🇸美国-自动'
+      - '🤖 美国-Gemini'
+      - 'REJECT'
+  - name: '🇩🇪德国-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(德国|🇩🇪|DE|Germany)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '🇩🇪德国'
+    type: select
+    proxies:
+      - '🇩🇪德国-自动'
+    use:
+      - 'Airport'
+    filter: '(德国|🇩🇪|DE|Germany)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+  - name: '其他-自动'
+    type: url-test
+    use:
+      - 'Airport'
+    filter: '(加拿大|印度|法国|澳大利亚|英国|Canada|India|France|Australia|UK|England)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+    url: 'https://www.gstatic.com/generate_204'
+    interval: 180
+    timeout: 5000
+    tolerance: 100
+    lazy: true
+    expected-status: 204
+    empty-fallback: REJECT
+  - name: '其他'
+    type: select
+    proxies:
+      - '其他-自动'
+    use:
+      - 'Airport'
+    filter: '(加拿大|印度|法国|澳大利亚|英国|Canada|India|France|Australia|UK|England)'
+    exclude-filter: '(((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*[xX×])|([xX×]\s*(1\.[1-9]\d*|[2-9]\d*(\.\d+)?))|((1\.[1-9]\d*|[2-9]\d*(\.\d+)?)\s*倍)|([一二三四五六七八九十百]+\s*倍)|(倍率)|(计费)|(流量计费)|(特殊连接)|(特殊连接优化))|(Gemini)|(限速5M)|(((0\.[0-9]+)\s*[xX×])|([xX×]\s*(0\.[0-9]+))|((0\.[0-9]+)\s*倍)|(半价)|(折扣)|(5折)|(五折)|(50%专线)|(50％专线)|(Tomorin)|(高松灯))|(VIP6)|(无端口限制)|(当前账户等级小于节点等级)'
+
+rule-providers:
+  rule_01:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/kimbersy/openclash/main/list/AI.list'
+    path: './rule_providers/rule_01.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_02:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.list'
+    path: './rule_providers/rule_02.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_03:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/TikTok/TikTok.list'
+    path: './rule_providers/rule_03.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_04:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram.list'
+    path: './rule_providers/rule_04.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_05:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/YouTube.list'
+    path: './rule_providers/rule_05.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_06:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube.list'
+    path: './rule_providers/rule_06.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_07:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/HBO/HBO.list'
+    path: './rule_providers/rule_07.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_08:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.list'
+    path: './rule_providers/rule_08.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_09:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AppleTV/AppleTV.list'
+    path: './rule_providers/rule_09.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_10:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.list'
+    path: './rule_providers/rule_10.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_11:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.list'
+    path: './rule_providers/rule_11.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_12:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PlayStation/PlayStation.list'
+    path: './rule_providers/rule_12.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_13:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Xbox/Xbox.list'
+    path: './rule_providers/rule_13.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_14:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Nintendo/Nintendo.list'
+    path: './rule_providers/rule_14.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_15:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Steam/Steam.list'
+    path: './rule_providers/rule_15.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_16:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PayPal/PayPal.list'
+    path: './rule_providers/rule_16.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_17:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Check.list'
+    path: './rule_providers/rule_17.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_18:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Proxy.list'
+    path: './rule_providers/rule_18.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_19:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global.list'
+    path: './rule_providers/rule_19.list'
+    interval: 86400
+    proxy: '🌍 国外'
+
+rules:
+  - 'RULE-SET,rule_01,🤖 AI'
+  - 'RULE-SET,rule_02,💻 GitHub'
+  - 'RULE-SET,rule_03,🎵 TikTok'
+  - 'RULE-SET,rule_04,✈️ Telegram'
+  - 'RULE-SET,rule_05,📺 流媒体'
+  - 'RULE-SET,rule_06,📺 流媒体'
+  - 'RULE-SET,rule_07,📺 流媒体'
+  - 'RULE-SET,rule_08,🏰 Disney+'
+  - 'RULE-SET,rule_09,🍎 AppleTV+'
+  - 'RULE-SET,rule_10,📺 流媒体'
+  - 'RULE-SET,rule_11,🟢 Spotify'
+  - 'RULE-SET,rule_12,🎮 PlayStation'
+  - 'RULE-SET,rule_13,🎮 Xbox'
+  - 'RULE-SET,rule_14,🎮 Nintendo'
+  - 'RULE-SET,rule_15,🧿 Steam'
+  - 'RULE-SET,rule_16,💳 PayPal'
+  - 'RULE-SET,rule_17,🌍 国外'
+  - 'RULE-SET,rule_18,🌍 国外'
+  - 'RULE-SET,rule_19,🌍 国外'
+  - 'MATCH,🏠 国内'
