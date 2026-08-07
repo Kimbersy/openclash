@@ -167,7 +167,7 @@ def group_url(tokens: list[str]) -> str:
         if is_url(token):
             return token
 
-    return "http://www.gstatic.com/generate_204"
+    return "https://www.gstatic.com/generate_204"
 
 
 def group_params(tokens: list[str]) -> tuple[int, int, int]:
