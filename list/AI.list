@@ -1,46 +1,32 @@
-AI Proxy Rules - 精准综合版
+# ==================================================
+# AI Proxy Rules - 精准综合版
+# FORMAT: Clash / Mihomo Classical Ruleset
+# ==================================================
+#
+# 包含：
+# Microsoft Copilot / GitHub Copilot
+# Anthropic / Claude
+# Google Gemini / AI Studio / NotebookLM
+# Google Jules / Flow / Opal / Antigravity / Stitch
+# OpenAI / ChatGPT / Sora
+# xAI / Grok
+# Meta AI
+# Perplexity
+# Groq
+# Dify
+# Genspark
+#
+# 设计原则：
+# 1. 优先使用服务专属域名，减少误分流
+# 2. 不使用整个 googleapis.com / gstatic.com / x.com / bing.com
+# 3. 不加入 Sentry / Stripe / Intercom / Datadog 等共享第三方域名
+# 4. 尽量避免普通 Google / X / Bing 流量进入 AI 策略组
+# 5. Google 登录仅保留 accounts.google.com，提高 Gemini / NotebookLM 会话地区一致性
 
-FORMAT: Clash / Mihomo Classical Ruleset
 
-包含：
-
-Microsoft Copilot / GitHub Copilot
-
-Anthropic / Claude
-
-Google Gemini / AI Studio / NotebookLM
-
-Google Jules / Flow / Opal / Antigravity / Stitch
-
-OpenAI / ChatGPT / Sora
-
-xAI / Grok
-
-Meta AI
-
-Perplexity
-
-Groq
-
-Dify
-
-Genspark
-
-设计原则：
-
-1. 使用服务专属域名，减少误分流
-
-2. 不使用整个 googleapis.com、gstatic.com、x.com、bing.com
-
-3. 不加入 Stripe、Sentry、Intercom 等共享第三方域名
-
-4. 避免普通 Google、X、Bing 流量进入 AI 策略组
-
-==================================================
-
-Microsoft Copilot / GitHub Copilot
-
-==================================================
+# ==================================================
+# Microsoft Copilot / GitHub Copilot
+# ==================================================
 
 DOMAIN,location.microsoft.com
 DOMAIN,odc.officeapps.live.com
@@ -57,11 +43,10 @@ DOMAIN-SUFFIX,api.microsoftapp.net
 DOMAIN-SUFFIX,bing-shopping.microsoft-falcon.io
 DOMAIN-SUFFIX,edgeservices.bing.com
 
-==================================================
 
-Anthropic / Claude
-
-==================================================
+# ==================================================
+# Anthropic / Claude
+# ==================================================
 
 DOMAIN-SUFFIX,anthropic.com
 DOMAIN-SUFFIX,anthropic.com.cn
@@ -94,11 +79,21 @@ IP-CIDR,160.79.104.0/21,no-resolve
 IP-CIDR6,2607:6bc0::/32,no-resolve
 IP-ASN,399358,no-resolve
 
-==================================================
 
-Google Gemini / AI Studio
+# ==================================================
+# Google AI 登录 / 会话
+# ==================================================
+#
+# 只代理 Google Account 登录入口。
+# 不加入整个 google.com，避免普通 Google 搜索进入 AI。
+#
 
-==================================================
+DOMAIN,accounts.google.com
+
+
+# ==================================================
+# Google Gemini / AI Studio / DeepMind
+# ==================================================
 
 DOMAIN,ai.google.dev
 DOMAIN,alkalicore-pa.clients6.google.com
@@ -123,25 +118,22 @@ DOMAIN-SUFFIX,geller-pa.googleapis.com
 DOMAIN-SUFFIX,proactivebackend-pa.googleapis.com
 DOMAIN-SUFFIX,robinfrontend-pa.googleapis.com
 
-DOMAIN-KEYWORD,generativelanguage
 
-==================================================
-
-Google NotebookLM
-
-==================================================
-
-DOMAIN-SUFFIX,notebooklm.google
-DOMAIN-SUFFIX,notebooklm.google.com
+# ==================================================
+# Google NotebookLM
+# ==================================================
 
 DOMAIN,notebooklm-pa.googleapis.com
 DOMAIN,notebooklm.googleapis.com
 
-==================================================
+DOMAIN-SUFFIX,notebook.google.com
+DOMAIN-SUFFIX,notebooklm.google
+DOMAIN-SUFFIX,notebooklm.google.com
 
-Gemini Code Assist / Cloud Code
 
-==================================================
+# ==================================================
+# Gemini Code Assist / Cloud Code
+# ==================================================
 
 DOMAIN,cloudaicompanion.googleapis.com
 DOMAIN,cloudcode-pa.googleapis.com
@@ -150,40 +142,36 @@ DOMAIN,daily-cloudcode-pa.googleapis.com
 DOMAIN-SUFFIX,aicode.googleapis.com
 DOMAIN-SUFFIX,aida.googleapis.com
 
-==================================================
 
-Google AI Labs / Flow
-
-==================================================
+# ==================================================
+# Google AI Labs / Flow
+# ==================================================
 
 DOMAIN-SUFFIX,aisandbox-pa.googleapis.com
 DOMAIN-SUFFIX,flow.google
 DOMAIN-SUFFIX,labs.google
 DOMAIN-SUFFIX,labs.google.com
 
-==================================================
 
-Google Jules
-
-==================================================
+# ==================================================
+# Google Jules
+# ==================================================
 
 DOMAIN-SUFFIX,jules.google
 DOMAIN-SUFFIX,jules.google.com
 
-==================================================
 
-Google Opal
-
-==================================================
+# ==================================================
+# Google Opal
+# ==================================================
 
 DOMAIN-SUFFIX,opal.google
 DOMAIN-SUFFIX,opal.google.com
 
-==================================================
 
-Google Antigravity
-
-==================================================
+# ==================================================
+# Google Antigravity
+# ==================================================
 
 DOMAIN,antigravity-pa.googleapis.com
 DOMAIN,antigravity.googleapis.com
@@ -192,19 +180,17 @@ DOMAIN-SUFFIX,antigravity.google
 DOMAIN-SUFFIX,antigravity.google.com
 DOMAIN-SUFFIX,antigravity-unleash.goog
 
-==================================================
 
-Google Stitch
-
-==================================================
+# ==================================================
+# Google Stitch
+# ==================================================
 
 DOMAIN-SUFFIX,stitch.withgoogle.com
 
-==================================================
 
-OpenAI / ChatGPT / Sora
-
-==================================================
+# ==================================================
+# OpenAI / ChatGPT / Sora
+# ==================================================
 
 DOMAIN-SUFFIX,ai.com
 DOMAIN-SUFFIX,chat.com
@@ -227,38 +213,40 @@ DOMAIN-SUFFIX,sora.com
 DOMAIN-KEYWORD,chatgpt-async-webps-prod
 DOMAIN-KEYWORD,openai
 
-==================================================
 
-OpenAI 专属依赖
+# ==================================================
+# OpenAI 必要依赖
+# ==================================================
+#
+# 只保留与 OpenAI 功能关联较强的专属依赖。
+#
+# 不加入以下共享服务：
+# sentry.io
+# stripe.com
+# intercom.io
+# intercomcdn.com
+# segment.io
+# launchdarkly.com
+# browser-intake-datadoghq.com
+# static.cloudflareinsights.com
+#
 
-==================================================
-
-DOMAIN,browser-intake-datadoghq.com
 DOMAIN,openai-api.arkoselabs.com
 DOMAIN,openaiassets.blob.core.windows.net
 DOMAIN,openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net
 DOMAIN,openaicomproductionae4b.blob.core.windows.net
 DOMAIN,production-openaicom-storage.azureedge.net
-DOMAIN,static.cloudflareinsights.com
 
-DOMAIN-SUFFIX,api.statsig.com
-DOMAIN-SUFFIX,chatgpt.site
 DOMAIN-SUFFIX,client-api.arkoselabs.com
-DOMAIN-SUFFIX,events.statsigapi.net
-DOMAIN-SUFFIX,featuregates.org
 DOMAIN-SUFFIX,host.livekit.cloud
-DOMAIN-SUFFIX,oaistatsig.com
-DOMAIN-SUFFIX,openai.com.cdn.cloudflare.net
-DOMAIN-SUFFIX,statsigapi.net
 DOMAIN-SUFFIX,turn.livekit.cloud
 
-DOMAIN-REGEX,^chatgpt-async-webps-prod-\S+-\d+.webpubsub.azure.com$
+DOMAIN-REGEX,^chatgpt-async-webps-prod-\S+-\d+\.webpubsub\.azure\.com$
 
-==================================================
 
-OpenAI Network
-
-==================================================
+# ==================================================
+# OpenAI Network
+# ==================================================
 
 IP-CIDR,199.47.142.0/23,no-resolve
 IP-CIDR,24.199.123.28/32,no-resolve
@@ -266,34 +254,33 @@ IP-CIDR,64.23.132.171/32,no-resolve
 IP-CIDR6,2604:f20::/32,no-resolve
 IP-ASN,401518,no-resolve
 
-==================================================
 
-xAI / Grok
-
-不加入整个 x.com，避免普通 X/Twitter 流量进入 AI 组
-
-==================================================
+# ==================================================
+# xAI / Grok
+# ==================================================
+#
+# 不加入整个 x.com。
+# 避免普通 X / Twitter 浏览、图片、视频进入 AI 组。
+#
 
 DOMAIN-SUFFIX,grok.com
 DOMAIN-SUFFIX,grok.x.com
 DOMAIN-SUFFIX,x.ai
 
-==================================================
 
-Meta AI
-
-==================================================
+# ==================================================
+# Meta AI
+# ==================================================
 
 DOMAIN,ai.meta.com
 DOMAIN-SUFFIX,llama.com
 DOMAIN-SUFFIX,meta.ai
 DOMAIN-SUFFIX,metademolab.com
 
-==================================================
 
-Perplexity
-
-==================================================
+# ==================================================
+# Perplexity
+# ==================================================
 
 DOMAIN,ppl-ai-file-upload.s3.amazonaws.com
 DOMAIN,pplx-res.cloudinary.com
@@ -302,27 +289,24 @@ DOMAIN-SUFFIX,perplexity.ai
 DOMAIN-SUFFIX,perplexity.com
 DOMAIN-SUFFIX,pplx.ai
 
-==================================================
 
-Groq
-
-==================================================
+# ==================================================
+# Groq
+# ==================================================
 
 DOMAIN-SUFFIX,groq.com
 
-==================================================
 
-Dify
-
-==================================================
+# ==================================================
+# Dify
+# ==================================================
 
 DOMAIN-SUFFIX,dify.ai
 DOMAIN-SUFFIX,difyai.com
 
-==================================================
 
-Genspark
-
-==================================================
+# ==================================================
+# Genspark
+# ==================================================
 
 DOMAIN-SUFFIX,genspark.ai
