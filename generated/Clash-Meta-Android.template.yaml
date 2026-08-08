@@ -612,7 +612,7 @@ rule-providers:
     type: http
     behavior: classical
     format: text
-    url: 'https://raw.githubusercontent.com/kimbersy/openclash/automation-test/list/AI.list'
+    url: 'https://raw.githubusercontent.com/kimbersy/openclash/main/list/AI.list'
     path: './rule_providers/rule_01.list'
     interval: 86400
     proxy: '🌍 国外'
