@@ -898,49 +898,103 @@ def generate_group(
 
         return
 
-    # ========================================================
-    # FALLBACK
-    # ========================================================
+# ========================================================
+# FALLBACK
+# ========================================================
+if group.kind == "fallback":
+    lines.append(
+        " type: fallback"
+    )
 
-    if group.kind == "fallback":
+    # fallback 可以有两种来源：
+    #
+    # 1. []策略组 / []节点引用
+    #    例如：
+    #    []低延迟-自动`[]所有-自动
+    #
+    # 2. 机场 proxy-provider + 正则筛选
+    #    例如：
+    #    台湾 / 香港 / 日本等地区节点
+    #
 
-        lines.append(
-            "    type: fallback"
-        )
-
+    if refs:
         emit_list(
             lines,
             "proxies",
-            refs or ["REJECT"],
+            refs,
             indent=4,
         )
 
-        lines.extend(
-            [
-                (
-                    "    url: "
-                    + yaml_quote(
-                        test_url
-                    )
-                ),
-                (
-                    f"    interval: "
-                    f"{interval}"
-                ),
-                (
-                    f"    timeout: "
-                    f"{timeout}"
-                ),
-                "    lazy: true",
-                (
-                    "    expected-status: "
-                    "204"
-                ),
-            ]
+    if filter_regex or exclude_regex:
+        lines.append(
+            " use:"
+        )
+        lines.append(
+            " - "
+            + yaml_quote(
+                PROVIDER_NAME
+            )
         )
 
-        return
+        if filter_regex:
+            lines.append(
+                " filter: "
+                + yaml_quote(
+                    filter_regex
+                )
+            )
 
+        if exclude_regex:
+            lines.append(
+                " exclude-filter: "
+                + yaml_quote(
+                    exclude_regex
+                )
+            )
+
+    # 完全没有引用，也没有正则时才使用 REJECT 兜底
+    if (
+        not refs
+        and not filter_regex
+        and not exclude_regex
+    ):
+        emit_list(
+            lines,
+            "proxies",
+            ["REJECT"],
+            indent=4,
+        )
+
+    lines.extend(
+        [
+            (
+                " url: "
+                + yaml_quote(
+                    test_url
+                )
+            ),
+            (
+                f" interval: "
+                f"{interval}"
+            ),
+            (
+                f" timeout: "
+                f"{timeout}"
+            ),
+            " lazy: true",
+            (
+                " expected-status: "
+                "204"
+            ),
+        ]
+    )
+
+    if filter_regex or exclude_regex:
+        lines.append(
+            " empty-fallback: REJECT"
+        )
+
+    return
 
 # ============================================================
 # Rule Providers
