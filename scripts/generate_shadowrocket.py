@@ -5,13 +5,21 @@ from pathlib import Path
 import re
 
 
+# ==========================================================
+# 路径
+# ==========================================================
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_INI = ROOT / "Clash-Li.ini"
 OUTPUT = ROOT / "generated" / "Shadowrocket.conf"
 
 
 # ==========================================================
-# Shadowrocket 固定设置
+# Shadowrocket 固定基础设置
+#
+# 这里只保留客户端运行所需的基础设置；
+# 不在这里增加任何业务分流、策略组、DIRECT/REJECT、
+# LAN/GEOIP 等 INI 中未定义的策略内容。
 # ==========================================================
 
 GENERAL = """[General]
@@ -22,18 +30,11 @@ block-quic = all-proxy
 """
 
 
-# Shadowrocket 平台额外保留的入口
-EXTRA_WRAPPER_CHOICES = {
-    "⚡ 低延迟": ["所有"],
-    "📶 高带宽": ["所有"],
-}
-
-
 # ==========================================================
 # 数据结构
 # ==========================================================
 
-@dataclass
+@dataclass(frozen=True)
 class Group:
     name: str
     kind: str
@@ -44,124 +45,88 @@ class Group:
 # 读取 Clash-Li.ini
 # ==========================================================
 
-def parse_ini(
-    path: Path,
-) -> tuple[list[tuple[str, str]], list[Group]]:
+def parse_ini(path: Path) -> tuple[list[tuple[str, str]], list[Group]]:
     """
-    读取 Clash-Li.ini 中：
+    仅读取 Clash-Li.ini 中与 Shadowrocket 生成有关的两类内容：
 
-    ruleset=
-    custom_proxy_group=
+    1. ruleset=
+    2. custom_proxy_group=
+
+    其他参数保持由原有 Subconverter / Clash 体系处理。
     """
 
     rulesets: list[tuple[str, str]] = []
     groups: list[Group] = []
 
-    text = path.read_text(
-        encoding="utf-8-sig",
-    )
+    text = path.read_text(encoding="utf-8-sig")
 
     for raw in text.splitlines():
-
         line = raw.strip()
 
-        if not line:
+        if not line or line.startswith((";", "#")):
             continue
-
-        if line.startswith(";"):
-            continue
-
-        if line.startswith("#"):
-            continue
-
-        # --------------------------------------------------
-        # ruleset
-        # --------------------------------------------------
 
         if line.startswith("ruleset="):
-
             body = line[len("ruleset="):]
 
             if "," not in body:
-                raise ValueError(
-                    f"无法解析 ruleset：{line}"
-                )
+                # 非法行直接忽略，不额外创造替代规则
+                continue
 
-            policy, target = body.split(
-                ",",
-                1,
-            )
+            policy, target = body.split(",", 1)
+            policy = policy.strip()
+            target = target.strip()
 
-            rulesets.append(
-                (
-                    policy.strip(),
-                    target.strip(),
-                )
-            )
+            if policy and target:
+                rulesets.append((policy, target))
 
             continue
 
-        # --------------------------------------------------
-        # custom_proxy_group
-        # --------------------------------------------------
-
-        if line.startswith(
-            "custom_proxy_group="
-        ):
-
-            body = line[
-                len("custom_proxy_group="):
-            ]
-
+        if line.startswith("custom_proxy_group="):
+            body = line[len("custom_proxy_group="):]
             parts = body.split("`")
 
             if len(parts) < 2:
-                raise ValueError(
-                    f"无法解析策略组：{line}"
-                )
+                continue
 
             name = parts[0].strip()
             kind = parts[1].strip()
-
             tokens = [
                 part.strip()
                 for part in parts[2:]
                 if part.strip()
             ]
 
-            groups.append(
-                Group(
-                    name=name,
-                    kind=kind,
-                    tokens=tokens,
+            if name and kind:
+                groups.append(
+                    Group(
+                        name=name,
+                        kind=kind,
+                        tokens=tokens,
+                    )
                 )
-            )
 
     return rulesets, groups
 
 
 # ==========================================================
-# 基础解析
+# Token 基础判断
 # ==========================================================
 
 def is_url(token: str) -> bool:
-
-    return token.startswith(
-        (
-            "http://",
-            "https://",
-        )
-    )
+    return token.startswith(("http://", "https://"))
 
 
 def is_params(token: str) -> bool:
     """
-    支持：
+    支持当前 INI 中常见形式：
 
     180,5
     180,5,100
-    """
 
+    同时兼容最多四段纯数字参数，
+    防止未来参数被误识别为节点正则。
+    """
     return bool(
         re.fullmatch(
             r"\d+(?:,\d+){1,3}",
@@ -170,21 +135,18 @@ def is_params(token: str) -> bool:
     )
 
 
-def parse_params(
-    token: str | None,
-) -> tuple[int, int, int]:
+def parse_params(token: str | None) -> tuple[int, int, int]:
     """
-    subconverter：
+    返回：
+        interval
+        timeout
+        tolerance
 
-    interval,timeout,tolerance
+    url-test 常见：
+        180,5,100
 
-    例如：
-
-    180,5,100
-
-    fallback 可能是：
-
-    180,5
+    fallback 常见：
+        180,5
     """
 
     interval = 600
@@ -192,91 +154,58 @@ def parse_params(
     tolerance = 100
 
     if not token:
-
-        return (
-            interval,
-            timeout,
-            tolerance,
-        )
+        return interval, timeout, tolerance
 
     parts = token.split(",")
 
-    if (
-        len(parts) >= 1
-        and parts[0].isdigit()
-    ):
-        interval = int(
-            parts[0]
-        )
+    if len(parts) >= 1 and parts[0].isdigit():
+        interval = int(parts[0])
 
-    if (
-        len(parts) >= 2
-        and parts[1].isdigit()
-    ):
-        timeout = int(
-            parts[1]
-        )
+    if len(parts) >= 2 and parts[1].isdigit():
+        timeout = int(parts[1])
 
-    if (
-        len(parts) >= 3
-        and parts[2].isdigit()
-    ):
-        tolerance = int(
-            parts[2]
-        )
+    if len(parts) >= 3 and parts[2].isdigit():
+        tolerance = int(parts[2])
 
-    return (
-        interval,
-        timeout,
-        tolerance,
-    )
+    return interval, timeout, tolerance
 
 
 # ==========================================================
-# 策略组 token 解析
+# custom_proxy_group token 解析
 # ==========================================================
 
-def group_refs(
-    tokens: list[str],
-) -> list[str]:
+def group_refs(tokens: list[str]) -> list[str]:
     """
-    取得：
+    INI：
+        []🇹🇼台湾
+        []DIRECT
+        []REJECT
 
-    []🇹🇼台湾
-    []DIRECT
-    []REJECT
+    Shadowrocket：
+        🇹🇼台湾
+        DIRECT
+        REJECT
 
-    并去掉 []
+    只做语法转换，不新增任何引用。
     """
-
-    refs: list[str] = []
-
-    for token in tokens:
-
-        if token.startswith("[]"):
-
-            refs.append(
-                token[2:]
-            )
-
-    return refs
+    return [
+        token[2:]
+        for token in tokens
+        if token.startswith("[]")
+    ]
 
 
-def group_regex(
-    tokens: list[str],
-) -> str | None:
+def group_regex(tokens: list[str]) -> str | None:
     """
-    找到 custom_proxy_group 中的节点正则。
+    找到策略组中的节点筛选正则。
 
     排除：
-
-    []策略组
-    URL
-    180,5,100
+        []策略组引用
+        URL
+        数字参数
     """
 
     for token in tokens:
-
         if token.startswith("[]"):
             continue
 
@@ -291,58 +220,47 @@ def group_regex(
     return None
 
 
-def group_url(
-    tokens: list[str],
-) -> str:
+def group_url(tokens: list[str]) -> str | None:
+    """
+    返回 INI 中明确写出的测速 URL。
+
+    不在这里人为增加新的业务策略。
+    对 url-test / fallback，如果 INI 没写 URL，
+    生成时才使用 Shadowrocket 常规测速地址作为纯客户端语法默认值。
+    """
 
     for token in tokens:
-
         if is_url(token):
-
             return token
 
-    return (
-        "https://www.gstatic.com/"
-        "generate_204"
-    )
+    return None
 
 
-def group_params(
-    tokens: list[str],
-) -> tuple[int, int, int]:
-
-    for token in reversed(
-        tokens
-    ):
-
+def group_params(tokens: list[str]) -> tuple[int, int, int]:
+    for token in reversed(tokens):
         if is_params(token):
+            return parse_params(token)
 
-            return parse_params(
-                token
-            )
-
-    return parse_params(
-        None
-    )
+    return parse_params(None)
 
 
 # ==========================================================
-# RuleSet URL 转换
+# RuleSet URL 平台适配
 # ==========================================================
 
-def shadowrocket_ruleset_url(
-    url: str,
-) -> str:
+def shadowrocket_ruleset_url(url: str) -> str:
     """
-    Blackmatrix7 Clash 规则：
+    只做“同一规则集在不同客户端中的路径适配”。
 
-    /rule/Clash/
+    Blackmatrix7：
+        /rule/Clash/
+    转为：
+        /rule/Shadowrocket/
 
-    自动转换：
+    用户自己的 AI.list、liandu2024 等地址保持不变。
 
-    /rule/Shadowrocket/
-
-    你的 AI.list / liandu2024 保持不变。
+    Global 在 Blackmatrix7 的 Shadowrocket 发布结构中使用 Proxy.list，
+    因此只做对应客户端路径转换，不改变它在 INI 中的策略归属。
     """
 
     marker = (
@@ -352,20 +270,9 @@ def shadowrocket_ruleset_url(
     )
 
     if marker not in url:
-
         return url
 
-    # ------------------------------------------------------
-    # Global 特殊处理
-    # ------------------------------------------------------
-
-    if (
-        "/rule/Clash/"
-        "Global/"
-        "Global.list"
-        in url
-    ):
-
+    if "/rule/Clash/Global/Global.list" in url:
         return (
             "https://raw.githubusercontent.com/"
             "blackmatrix7/"
@@ -376,12 +283,7 @@ def shadowrocket_ruleset_url(
             "Proxy.list"
         )
 
-    # ------------------------------------------------------
-    # 其他 Blackmatrix Clash 规则
-    # ------------------------------------------------------
-
     if "/rule/Clash/" in url:
-
         return url.replace(
             "/rule/Clash/",
             "/rule/Shadowrocket/",
@@ -391,171 +293,152 @@ def shadowrocket_ruleset_url(
 
 
 # ==========================================================
-# 手动组名称
+# 策略组生成
 # ==========================================================
 
-def get_manual_name(
-    auto_name: str,
-) -> str:
+def build_select_line(group: Group) -> str:
     """
-    🇹🇼台湾-自动
-        ↓
-    🇹🇼台湾-手动
+    select 严格按照 INI 输出：
+
+    - INI 中有 []引用 -> 输出对应引用
+    - INI 中有正则 -> 输出 policy-regex-filter
+    - INI 中没有 DIRECT -> 不补 DIRECT
+    - INI 中没有 REJECT -> 不补 REJECT
+    - 不生成 policy-select-name
+    - 不生成额外“手动组”
     """
 
-    base = auto_name.removesuffix(
-        "-自动"
-    )
+    refs = group_refs(group.tokens)
+    regex = group_regex(group.tokens)
 
-    return (
-        f"{base}-手动"
-    )
+    pieces = [f"{group.name} = select"]
 
+    if refs:
+        pieces.extend(refs)
 
-# ==========================================================
-# select 组生成
-# ==========================================================
-
-def build_select_line(
-    group: Group,
-    auto_groups: dict[str, Group],
-) -> str:
-
-    refs = group_refs(
-        group.tokens
-    )
-
-    original_first = (
-        refs[0]
-        if refs
-        else None
-    )
-
-    auto_name = (
-        f"{group.name}-自动"
-    )
-
-    manual_name = (
-        f"{group.name}-手动"
-    )
-
-    # ======================================================
-    # 如果存在对应 xxx-自动
-    #
-    # Shadowrocket 自动补：
-    #
-    # xxx-自动
-    # xxx-手动
-    # ======================================================
-
-    if auto_name in auto_groups:
-
-        # --------------------------------------------------
-        # 自动组
-        # --------------------------------------------------
-
-        if auto_name not in refs:
-
-            refs.append(
-                auto_name
-            )
-
-        # --------------------------------------------------
-        # 手动组
-        # --------------------------------------------------
-
-        if manual_name not in refs:
-
-            if auto_name in refs:
-
-                index = refs.index(
-                    auto_name
-                )
-
-                refs.insert(
-                    index + 1,
-                    manual_name,
-                )
-
-            else:
-
-                refs.append(
-                    manual_name
-                )
-
-        # --------------------------------------------------
-        # Shadowrocket 专属额外入口
-        # --------------------------------------------------
-
-        extras = (
-            EXTRA_WRAPPER_CHOICES.get(
-                group.name,
-                [],
-            )
-        )
-
-        for extra in extras:
-
-            if extra not in refs:
-
-                refs.append(
-                    extra
-                )
-
-        # --------------------------------------------------
-        # 防空组
-        # --------------------------------------------------
-
-        if "REJECT" not in refs:
-
-            refs.append(
-                "REJECT"
-            )
-
-    regex = group_regex(
-        group.tokens
-    )
-
-    # ======================================================
-    # 纯正则 select
-    # ======================================================
-
-    if regex and not refs:
-
-        return (
-            f"{group.name} = select,"
+    if regex:
+        pieces.append(
             f"policy-regex-filter={regex}"
         )
 
-    # ======================================================
-    # 完全没有内容
-    # ======================================================
+    return ",".join(pieces)
 
-    if not refs:
 
-        refs = [
-            "DIRECT",
-            "REJECT",
+def build_url_test_line(group: Group) -> str:
+    """
+    url-test 严格复用 INI 中：
+        []引用
+        正则
+        URL
+        interval / timeout / tolerance
+
+    不增加额外节点或策略组。
+    """
+
+    refs = group_refs(group.tokens)
+    regex = group_regex(group.tokens)
+    url = group_url(group.tokens)
+    interval, timeout, tolerance = group_params(group.tokens)
+
+    pieces = [f"{group.name} = url-test"]
+
+    if refs:
+        pieces.extend(refs)
+
+    if regex:
+        pieces.append(
+            f"policy-regex-filter={regex}"
+        )
+
+    # URL / 参数属于客户端运行语法，不属于额外业务策略。
+    if url is None:
+        url = "https://www.gstatic.com/generate_204"
+
+    pieces.extend(
+        [
+            f"url={url}",
+            f"interval={interval}",
+            f"timeout={timeout}",
+            f"tolerance={tolerance}",
         ]
-
-    # ======================================================
-    # 默认选择
-    # ======================================================
-
-    default = (
-        original_first
-        or refs[0]
     )
 
-    return (
-        f"{group.name} = select,"
-        + ",".join(refs)
-        + f",policy-select-name={default}"
+    return ",".join(pieces)
+
+
+def build_fallback_line(group: Group) -> str:
+    """
+    fallback 同时支持：
+
+    1. fallback + []组引用
+       例如：
+       ⚡低延迟-兜底
+       📶高带宽-兜底
+
+    2. fallback + 正则节点池
+       例如：
+       🇹🇼台湾-自动
+
+    不再出现旧逻辑：
+        没有 refs -> 自动补 DIRECT
+
+    INI 没有 DIRECT，就绝不生成 DIRECT。
+    """
+
+    refs = group_refs(group.tokens)
+    regex = group_regex(group.tokens)
+    url = group_url(group.tokens)
+    interval, timeout, _ = group_params(group.tokens)
+
+    pieces = [f"{group.name} = fallback"]
+
+    if refs:
+        pieces.extend(refs)
+
+    if regex:
+        pieces.append(
+            f"policy-regex-filter={regex}"
+        )
+
+    if url is None:
+        url = "https://www.gstatic.com/generate_204"
+
+    pieces.extend(
+        [
+            f"url={url}",
+            f"interval={interval}",
+            f"timeout={timeout}",
+        ]
     )
+
+    return ",".join(pieces)
+
+
+def build_group_line(group: Group) -> str | None:
+    """
+    当前 INI 实际使用：
+        select
+        url-test
+        fallback
+
+    只针对这些已使用类型做 Shadowrocket 适配。
+    """
+
+    if group.kind == "select":
+        return build_select_line(group)
+
+    if group.kind == "url-test":
+        return build_url_test_line(group)
+
+    if group.kind == "fallback":
+        return build_fallback_line(group)
+
+    # 不猜测未知策略类型，也不新增替代策略。
+    return None
 
 
 # ==========================================================
-# Shadowrocket 主生成器
+# Shadowrocket 配置生成
 # ==========================================================
 
 def generate_shadowrocket(
@@ -563,512 +446,79 @@ def generate_shadowrocket(
     groups: list[Group],
 ) -> str:
 
-    # ------------------------------------------------------
-    # 出现在 ruleset 左侧的策略
-    # 视为业务策略组
-    # ------------------------------------------------------
-
-    policy_names = {
-        policy
-        for policy, _ in rulesets
-    }
-
-    # ------------------------------------------------------
-    # INI 本身已有的组
-    # ------------------------------------------------------
-
-    source_group_names = {
-        group.name
-        for group in groups
-    }
-
-    # ======================================================
-    # 找到全部 xxx-自动
-    #
-    # 关键修改：
-    #
-    # 原来只有 url-test
-    #
-    # 现在：
-    #
-    # url-test
-    # fallback
-    #
-    # 都属于自动组
-    # ======================================================
-
-    auto_groups: dict[str, Group] = {}
-
-    for group in groups:
-
-        if (
-            group.kind
-            in (
-                "url-test",
-                "fallback",
-            )
-            and group.name.endswith(
-                "-自动"
-            )
-        ):
-
-            auto_groups[
-                group.name
-            ] = group
-
-    # ======================================================
-    # 节点池 / 国家 / 运营商
-    # ======================================================
-
-    infrastructure = [
-        group
-        for group in groups
-        if group.name
-        not in policy_names
-    ]
-
-    # ======================================================
-    # AI / GitHub / 流媒体等业务组
-    # ======================================================
-
-    business = [
-        group
-        for group in groups
-        if group.name
-        in policy_names
-    ]
-
     lines: list[str] = [
         GENERAL.rstrip(),
         "",
         "[Proxy Group]",
-        (
-            "# ===== 从 Clash-Li.ini "
-            "自动生成 ====="
-        ),
+        "# ===== 严格由 Clash-Li.ini 自动转换 =====",
     ]
 
-    # 防止自动生成重复手动组
-    emitted_manual: set[str] = set()
+    # ------------------------------------------------------
+    # 策略组
+    # ------------------------------------------------------
 
-    # ======================================================
-    # 自动生成 xxx-手动
-    # ======================================================
+    for group in groups:
+        line = build_group_line(group)
 
-    def emit_manual_group(
-        group: Group,
-        regex: str | None,
-    ) -> None:
+        if line:
+            lines.append(line)
 
-        if not group.name.endswith(
-            "-自动"
-        ):
-            return
-
-        if not regex:
-            return
-
-        manual_name = (
-            get_manual_name(
-                group.name
-            )
-        )
-
-        # INI 已经自己定义
-        if (
-            manual_name
-            in source_group_names
-        ):
-            return
-
-        # 本轮已经输出
-        if (
-            manual_name
-            in emitted_manual
-        ):
-            return
-
-        lines.append(
-            f"{manual_name} = select,"
-            f"policy-regex-filter={regex}"
-        )
-
-        emitted_manual.add(
-            manual_name
-        )
-
-    # ======================================================
-    # 输出单个策略组
-    # ======================================================
-
-    def emit_group(
-        group: Group,
-    ) -> None:
-
-        # ==================================================
-        # URL-TEST
-        # ==================================================
-
-        if group.kind == "url-test":
-
-            refs = group_refs(
-                group.tokens
-            )
-
-            regex = group_regex(
-                group.tokens
-            )
-
-            url = group_url(
-                group.tokens
-            )
-
-            (
-                interval,
-                timeout,
-                tolerance,
-            ) = group_params(
-                group.tokens
-            )
-
-            pieces: list[str] = [
-                f"{group.name} = url-test"
-            ]
-
-            # ------------------------------------------------
-            # 如果有 []策略组引用
-            # ------------------------------------------------
-
-            if refs:
-
-                pieces.extend(
-                    refs
-                )
-
-            # ------------------------------------------------
-            # 节点正则
-            # ------------------------------------------------
-
-            if regex:
-
-                pieces.append(
-                    "policy-regex-filter="
-                    f"{regex}"
-                )
-
-            pieces.extend(
-                [
-                    (
-                        "interval="
-                        f"{interval}"
-                    ),
-                    (
-                        "timeout="
-                        f"{timeout}"
-                    ),
-                    (
-                        "tolerance="
-                        f"{tolerance}"
-                    ),
-                    (
-                        "url="
-                        f"{url}"
-                    ),
-                ]
-            )
-
-            lines.append(
-                ",".join(
-                    pieces
-                )
-            )
-
-            # 自动生成 xxx-手动
-            emit_manual_group(
-                group,
-                regex,
-            )
-
-            return
-
-        # ==================================================
-        # FALLBACK
-        # ==================================================
-        #
-        # 关键修改：
-        #
-        # 原来：
-        #
-        # fallback 只处理 []引用
-        #
-        # 如果只有 regex：
-        #
-        # refs = []
-        # ↓
-        # DIRECT
-        #
-        #
-        # 现在：
-        #
-        # fallback 同时支持：
-        #
-        # 1. []策略组引用
-        # 2. policy-regex-filter
-        #
-        # ==================================================
-
-        if group.kind == "fallback":
-
-            refs = group_refs(
-                group.tokens
-            )
-
-            regex = group_regex(
-                group.tokens
-            )
-
-            url = group_url(
-                group.tokens
-            )
-
-            (
-                interval,
-                timeout,
-                _,
-            ) = group_params(
-                group.tokens
-            )
-
-            pieces: list[str] = [
-                f"{group.name} = fallback"
-            ]
-
-            # ------------------------------------------------
-            # []引用
-            # ------------------------------------------------
-
-            if refs:
-
-                pieces.extend(
-                    refs
-                )
-
-            # ------------------------------------------------
-            # 正则节点池
-            # ------------------------------------------------
-
-            if regex:
-
-                pieces.append(
-                    "policy-regex-filter="
-                    f"{regex}"
-                )
-
-            # ------------------------------------------------
-            # 真正空组才使用 DIRECT
-            # ------------------------------------------------
-
-            if (
-                not refs
-                and not regex
-            ):
-
-                pieces.append(
-                    "DIRECT"
-                )
-
-            # ------------------------------------------------
-            # fallback 参数
-            # ------------------------------------------------
-
-            pieces.extend(
-                [
-                    (
-                        "url="
-                        f"{url}"
-                    ),
-                    (
-                        "interval="
-                        f"{interval}"
-                    ),
-                    (
-                        "timeout="
-                        f"{timeout}"
-                    ),
-                ]
-            )
-
-            lines.append(
-                ",".join(
-                    pieces
-                )
-            )
-
-            # ------------------------------------------------
-            # fallback 同样生成手动池
-            # ------------------------------------------------
-
-            emit_manual_group(
-                group,
-                regex,
-            )
-
-            return
-
-        # ==================================================
-        # SELECT
-        # ==================================================
-
-        if group.kind == "select":
-
-            line = build_select_line(
-                group,
-                auto_groups,
-            )
-
-            lines.append(
-                line
-            )
-
-            return
-
-        # ==================================================
-        # 不支持类型
-        # ==================================================
-
-        raise ValueError(
-            "暂不支持的策略组类型："
-            f"{group.kind} "
-            f"({group.name})"
-        )
-
-    # ======================================================
-    # 先输出节点池 / 国家 / 运营商
-    # ======================================================
-
-    lines.append(
-        (
-            "# ===== 节点池 / 地区 / "
-            "运营商 ====="
-        )
-    )
-
-    for group in infrastructure:
-
-        emit_group(
-            group
-        )
-
-    # ======================================================
-    # 再输出业务策略组
-    # ======================================================
-
-    lines.extend(
-        [
-            "",
-            "# ===== 业务分流组 =====",
-        ]
-    )
-
-    for group in business:
-
-        emit_group(
-            group
-        )
-
-    # ======================================================
+    # ------------------------------------------------------
     # Rule
-    # ======================================================
+    # ------------------------------------------------------
 
     lines.extend(
         [
             "",
             "[Rule]",
-            (
-                "# ===== 从 Clash-Li.ini "
-                "ruleset 自动生成 ====="
-            ),
+            "# ===== 严格由 Clash-Li.ini ruleset 自动转换 =====",
         ]
     )
 
-    final_policy = "DIRECT"
+    for policy, target in rulesets:
 
-    for (
-        policy,
-        target,
-    ) in rulesets:
-
-        # --------------------------------------------------
-        # FINAL
-        # --------------------------------------------------
-
+        # INI：
+        # ruleset=🏠 国内,[]FINAL
+        #
+        # Shadowrocket：
+        # FINAL,🏠 国内
         if target == "[]FINAL":
-
-            final_policy = policy
-
+            lines.append(
+                f"FINAL,{policy}"
+            )
             continue
 
-        # --------------------------------------------------
-        # 其他 [] 内联规则暂不猜测
-        # --------------------------------------------------
-
+        # 当前 INI 除 FINAL 外均为远程规则集。
+        # 如果未来出现其他 [] 内联规则，
+        # 这里不擅自推断或新增含义。
         if target.startswith("[]"):
+            continue
 
-            raise ValueError(
-                "发现尚未支持的内联 ruleset："
-                f"ruleset="
-                f"{policy},"
-                f"{target}"
-            )
-
-        # --------------------------------------------------
-        # 转换规则 URL
-        # --------------------------------------------------
-
-        url = (
-            shadowrocket_ruleset_url(
-                target
-            )
-        )
+        url = shadowrocket_ruleset_url(target)
 
         lines.append(
-            f"RULE-SET,"
-            f"{url},"
-            f"{policy}"
+            f"RULE-SET,{url},{policy}"
         )
 
-    # ======================================================
-    # Shadowrocket 平台直连规则
-    # ======================================================
+    lines.append("")
 
-    lines.extend(
-        [
-            "",
-            (
-                "# ===== Shadowrocket "
-                "平台专属直连规则 ====="
-            ),
-            (
-                "RULE-SET,"
-                "https://raw.githubusercontent.com/"
-                "blackmatrix7/"
-                "ios_rule_script/"
-                "master/rule/"
-                "Shadowrocket/"
-                "Lan/"
-                "Lan.list,"
-                "DIRECT"
-            ),
-            "GEOIP,CN,DIRECT",
-            "",
-            f"FINAL,{final_policy}",
-            "",
-        ]
+    content = "\n".join(lines)
+
+    # ------------------------------------------------------
+    # 只做“不改变策略含义”的安全检查
+    # ------------------------------------------------------
+
+    forbidden_generated_content = (
+        "policy-select-name=",
     )
 
-    return "\n".join(
-        lines
-    )
+    for item in forbidden_generated_content:
+        if item in content:
+            raise RuntimeError(
+                f"生成结果出现禁止字段：{item}"
+            )
+
+    return content
 
 
 # ==========================================================
@@ -1078,28 +528,22 @@ def generate_shadowrocket(
 def main() -> None:
 
     if not SOURCE_INI.exists():
-
         raise FileNotFoundError(
-            "找不到主配置："
-            f"{SOURCE_INI}"
+            f"找不到主配置：{SOURCE_INI}"
         )
 
-    rulesets, groups = (
-        parse_ini(
-            SOURCE_INI
-        )
+    rulesets, groups = parse_ini(
+        SOURCE_INI
+    )
+
+    content = generate_shadowrocket(
+        rulesets,
+        groups,
     )
 
     OUTPUT.parent.mkdir(
         parents=True,
         exist_ok=True,
-    )
-
-    content = (
-        generate_shadowrocket(
-            rulesets,
-            groups,
-        )
     )
 
     OUTPUT.write_text(
@@ -1109,9 +553,7 @@ def main() -> None:
 
     print(
         "Generated:",
-        OUTPUT.relative_to(
-            ROOT
-        ),
+        OUTPUT.relative_to(ROOT),
     )
 
     print(
@@ -1122,6 +564,18 @@ def main() -> None:
     print(
         "Proxy groups:",
         len(groups),
+    )
+
+    print(
+        "Source of truth: Clash-Li.ini"
+    )
+
+    print(
+        "Extra business policies: disabled"
+    )
+
+    print(
+        "policy-select-name: disabled"
     )
 
 
