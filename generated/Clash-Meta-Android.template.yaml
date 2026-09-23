@@ -729,7 +729,7 @@ rule-providers:
     type: http
     behavior: classical
     format: text
-    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Check.list'
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/China/China.list'
     path: './rule_providers/rule_16.list'
     interval: 86400
     proxy: '🌍 国外'
@@ -737,7 +737,7 @@ rule-providers:
     type: http
     behavior: classical
     format: text
-    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Proxy.list'
+    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Check.list'
     path: './rule_providers/rule_17.list'
     interval: 86400
     proxy: '🌍 国外'
@@ -745,8 +745,16 @@ rule-providers:
     type: http
     behavior: classical
     format: text
-    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global.list'
+    url: 'https://raw.githubusercontent.com/liandu2024/clash/main/list/Proxy.list'
     path: './rule_providers/rule_18.list'
+    interval: 86400
+    proxy: '🌍 国外'
+  rule_19:
+    type: http
+    behavior: classical
+    format: text
+    url: 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Global/Global.list'
+    path: './rule_providers/rule_19.list'
     interval: 86400
     proxy: '🌍 国外'
 
@@ -766,7 +774,8 @@ rules:
   - 'RULE-SET,rule_13,🎮 Nintendo'
   - 'RULE-SET,rule_14,🧿 Steam'
   - 'RULE-SET,rule_15,💳 PayPal'
-  - 'RULE-SET,rule_16,🌍 国外'
+  - 'RULE-SET,rule_16,🏠 国内'
   - 'RULE-SET,rule_17,🌍 国外'
   - 'RULE-SET,rule_18,🌍 国外'
+  - 'RULE-SET,rule_19,🌍 国外'
   - 'MATCH,🏠 国内'
