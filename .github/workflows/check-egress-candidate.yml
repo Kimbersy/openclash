@@ -1,0 +1,37 @@
+name: Test Egress Audit Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/egress-audit-20261111
+    paths:
+      - scripts/audit_egress.py
+      - scripts/render_verified_candidate.py
+      - tests/test_audit_egress.py
+      - tests/test_render_verified_candidate.py
+      - .github/workflows/check-egress-candidate.yml
+  pull_request:
+    paths:
+      - scripts/audit_egress.py
+      - scripts/render_verified_candidate.py
+      - tests/test_audit_egress.py
+      - tests/test_render_verified_candidate.py
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-cross-client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile scripts
+        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py
+      - name: Unit and existing generator integration tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
