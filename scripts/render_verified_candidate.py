@@ -50,7 +50,7 @@ def verified_names(report: dict, now: datetime | None = None, ttl_hours: int = 6
         if not isinstance(rec, dict) or "name" not in rec:
             raise ValueError("invalid audit entry")
         name = rec["name"]
-        if not isinstance(name, str) or not name or len(name) > 150 or any(x in name for x in ("\n", "\r", "\`", ",", "\\")):
+        if not isinstance(name, str) or not name or len(name) > 150 or any(x in name for x in ("\n", "\r", "`", ",", "\\")):
             raise ValueError("unsupported node name for shared converter")
         if name in seen:
             raise ValueError("duplicate node name in report")
@@ -91,7 +91,7 @@ def build_candidate_ini(source: str, names_by_country: dict[str, list[str]]) -> 
         raise ValueError("no validated nodes, refuse candidate generation")
     lines = source.splitlines()
     target_index = next((i for i, line in enumerate(lines)
-                         if line.startswith("custom_proxy_group=🤖 AI\`select\`")), None)
+                         if line.startswith("custom_proxy_group=🤖 AI`select`")), None)
     if target_index is None:
         raise ValueError("expected existing AI select policy")
     if any("🧭核验" in line for line in lines):
@@ -101,10 +101,10 @@ def build_candidate_ini(source: str, names_by_country: dict[str, list[str]]) -> 
         if not names_by_country.get(cc):
             continue
         label = "🧭核验" + REGIONS[cc]
-        extra.append("custom_proxy_group=" + label + "\`select\`" + literal_filter(names_by_country[cc]))
+        extra.append("custom_proxy_group=" + label + "`select`" + literal_filter(names_by_country[cc]))
     # New choices only, appended *after* original AI choices. Existing saved/default
     # AI selection and all existing groups remain unchanged.
-    ai_refs = "".join("\`[]🧭核验" + REGIONS[cc]
+    ai_refs = "".join("`[]🧭核验" + REGIONS[cc]
                       for cc in AI_ELIGIBLE_GROUP_OPTIONS if names_by_country.get(cc))
     lines[target_index] += ai_refs
     lines.extend(["", "; ===== PRIVATE VERIFIED-EGRESS CANDIDATE: NOT FOR PUBLIC COMMIT =====", *extra])
