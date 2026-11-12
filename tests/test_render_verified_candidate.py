@@ -123,8 +123,8 @@ class VerifiedCandidateTests(unittest.TestCase):
             self.assertIn("empty-fallback: REJECT", android)
             self.assertIn("🇹🇼台湾", shadowrocket)
             # Verify full names remain anchored in *generated* filters.
-            self.assertIn("(?:^(?:台湾 01)$)", android)
-            self.assertIn("(?:^(?:台湾 01)$)", shadowrocket)
+            self.assertIn("(?:^(?:台湾 01|台湾 02)$)", android)
+            self.assertIn("(?:^(?:台湾 01|台湾 02)$)", shadowrocket)
             self.assertIn("__AIRPORT_URL__", android)
             # Existing public generated files must not be written or altered.
             self.assertTrue((root / "generated" / "Shadowrocket.conf").is_file())
