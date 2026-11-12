@@ -16,6 +16,10 @@ import os
 from pathlib import Path
 import re
 import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from subscription_snapshot import assert_current_snapshot, validate_snapshot
+
 from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 
@@ -119,6 +123,10 @@ def exact_name_regex(names: list[str]) -> str:
 def audit(inventory: dict, timeout: int = 8) -> dict:
     if inventory.get("schema_version") != 1 or not isinstance(inventory.get("nodes"), list):
         raise ValueError("schema_version 1 with nodes list required")
+    validate_snapshot(inventory.get("subscription_snapshot"))
+    count = inventory.get("source_node_count")
+    if type(count) is not int or count < len(inventory["nodes"]) or count < 1:
+        raise ValueError("invalid dynamic subscription node count")
     if len(inventory["nodes"]) > 500:
         raise ValueError("maximum 500 nodes")
     records, seen_names, seen_proxies = [], set(), set()
@@ -149,6 +157,8 @@ def audit(inventory: dict, timeout: int = 8) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "meaning": "two-source real egress country; NOT AI platform eligibility or stable connection proof",
         "nodes": records,
+        "subscription_snapshot": inventory["subscription_snapshot"],
+        "source_node_count": inventory["source_node_count"],
         # Retain legacy for existing report consumers, but new candidates must
         # rely on observed_exit_name_filters instead of name-agreement only.
         "verified_name_filters": {country: exact_name_regex(matched_label[country]) for country in COUNTRIES},
@@ -180,13 +190,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audit actual per-node egress through private loopback proxies")
     parser.add_argument("--inventory", type=Path, required=True, help="PRIVATE file containing node/loopback proxy mapping")
     parser.add_argument("--report", type=Path, required=True, help="PRIVATE output file; never commit")
+    parser.add_argument("--node-config", type=Path, required=True,
+                        help="PRIVATE active subscription YAML used when inventory was prepared")
     parser.add_argument("--timeout", type=int, default=8)
     args = parser.parse_args()
     try:
         if not (1 <= args.timeout <= 30):
             raise ValueError("timeout must be 1-30 seconds")
         inventory = json.loads(args.inventory.read_text(encoding="utf-8"))
+        # Refuse to probe or certify if an airport refresh has already changed
+        # the node configuration since the isolated listeners were prepared.
+        assert_current_snapshot(inventory.get("subscription_snapshot"), args.node_config)
         result = audit(inventory, args.timeout)
+        assert_current_snapshot(inventory["subscription_snapshot"], args.node_config)
         secure_write_json(args.report, result)
         counts = defaultdict(int)
         for record in result["nodes"]:
