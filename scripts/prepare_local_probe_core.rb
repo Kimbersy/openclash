@@ -34,14 +34,16 @@ begin
                    'port'=>17881,'proxy'=>selected['name']}],
     'rules'=>['MATCH,REJECT']}
   dir=File.join(root,"openclash-probe-#{Time.now.to_i}-#{Process.pid}")
+  created_dir=false
   Dir.mkdir(dir,0700)
+  created_dir=true
   File.open(File.join(dir,'isolated.yaml'),File::WRONLY|File::CREAT|File::EXCL,0600) { |f| f.write(Psych.dump(conf)) }
   raise 'subscription refreshed' unless File.binread(src)==before
   puts "PREPARED_PRIVATE_DIR=#{dir}"
   puts "CURRENT_NODE_COUNT=#{nodes.size} HK_CANDIDATES=#{matches.size}"
   puts 'LISTEN=127.0.0.1:17881 STARTED=NO'
 rescue StandardError
-  if defined?(dir) && dir && File.directory?(dir)
+  if defined?(created_dir) && created_dir && dir && File.directory?(dir)
     private_file=File.join(dir,'isolated.yaml')
     File.unlink(private_file) if File.file?(private_file)
     Dir.rmdir(dir)
