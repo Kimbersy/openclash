@@ -25,13 +25,11 @@ REGIONS = {
     "KR": "🇰🇷韩国",
     "DE": "🇩🇪德国",
 }
-AI_ELIGIBLE_GROUP_OPTIONS = ("TW", "JP", "SG", "US")
-# Optional AI-only Taiwan fallback. Slower probes than existing 180s fallback.
-# Opt-in only; cannot preserve a long-running AI connection during switchover.
-AI_STABLE_TW_GROUP = "🛡️AI 稳态🇹🇼台湾"
-AI_STABLE_TW_URL = "https://www.gstatic.com/generate_204"
-AI_STABLE_TW_INTERVAL = 600
-AI_STABLE_TW_TIMEOUT = 10
+# No region is a blanket proxy for AI-platform availability.
+# Every verified observed country is offered as an OPTIONAL manual exit group.
+# Service-specific groups require independent actual-platform evidence (future).
+def exit_group(cc: str) -> str:
+    return "🧭出口" + REGIONS.get(cc, "🌐" + cc)
 
 
 def parse_utc(value: str) -> datetime:
@@ -42,6 +40,12 @@ def parse_utc(value: str) -> datetime:
 
 
 def verified_names(report: dict, now: datetime | None = None, ttl_hours: int = 6) -> dict[str, list[str]]:
+    """Group by observed exit COUNTRY, never by airport-labelled country.
+
+    An actual HK exit can remain a useful ChatGPT candidate even if a user's
+    NotebookLM test fails. Both service outcomes need independent proof, not
+    deductions from the country label or gstatic 204 status.
+    """
     if report.get("schema_version") != 1 or not isinstance(report.get("nodes"), list):
         raise ValueError("audit schema invalid")
     if not (1 <= ttl_hours <= 48):
@@ -61,18 +65,28 @@ def verified_names(report: dict, now: datetime | None = None, ttl_hours: int = 6
         if name in seen:
             raise ValueError("duplicate node name in report")
         seen.add(name)
-        if rec.get("status") != "match":
+        if not rec.get("egress_verified", False):
             continue
-        cc = rec.get("claimed_country")
-        if cc not in REGIONS or rec.get("observed_country") != cc:
-            raise ValueError("match record has inconsistent country")
+        cc = rec.get("observed_country")
+        claim = rec.get("claimed_country")
+        status = rec.get("status")
+        if not isinstance(cc, str) or not re.fullmatch(r"[A-Z]{2}", cc):
+            raise ValueError("verified exit needs a real observed ISO country code")
         if set(rec.get("evidence_sources", [])) != {"ipinfo", "ipapi"}:
-            raise ValueError("match record lacks two evidence sources")
+            raise ValueError("verified exit lacks two evidence sources")
         ips = rec.get("observed_ips")
         if not isinstance(ips, list) or len(ips) != 1:
-            raise ValueError("match record lacks a unique egress IP")
+            raise ValueError("verified exit lacks a unique observed IP")
+        if status == "match" and not (claim and claim == cc):
+            raise ValueError("label-match status conflicts with actual exit")
+        if status == "mismatch" and not (claim and claim != cc):
+            raise ValueError("label-mismatch status conflicts with actual exit")
+        if status == "unknown" and claim is not None:
+            raise ValueError("unknown label status conflicts with verified exit")
+        if status not in {"match", "mismatch", "unknown"}:
+            raise ValueError("invalid verified egress status")
         selected[cc].append(name)
-    return {cc: sorted(names) for cc, names in selected.items() if names}
+    return {cc: sorted(names) for cc, names in sorted(selected.items()) if names}
 
 
 def literal_filter(names: list[str]) -> str:
@@ -93,40 +107,34 @@ def literal_filter(names: list[str]) -> str:
 
 
 def build_candidate_ini(source: str, names_by_country: dict[str, list[str]]) -> str:
+    """Optional verified *egress* selectors, not ChatGPT/NotebookLM support claims.
+
+    Preserve original manual AI group, its existing selections, and every
+    existing service-specific route. No region-specific automatic fallback
+    is emitted based merely on geolocation.
+    """
     if not names_by_country:
-        raise ValueError("no validated nodes, refuse candidate generation")
+        raise ValueError("no validated real exits, refuse candidate generation")
     lines = source.splitlines()
     target_index = next((i for i, line in enumerate(lines)
                          if line.startswith("custom_proxy_group=🤖 AI`select`")), None)
     if target_index is None:
         raise ValueError("expected existing AI select policy")
-    if any("🧭核验" in line for line in lines):
+    if any(("🧭出口" in line or "🧭核验" in line or "🛡️AI 稳态" in line) for line in lines):
         raise ValueError("candidate already has verified groups")
     extra = []
-    for cc in REGIONS:
-        if not names_by_country.get(cc):
-            continue
-        label = "🧭核验" + REGIONS[cc]
-        extra.append("custom_proxy_group=" + label + "`select`" + literal_filter(names_by_country[cc]))
-    # Optional, source/provider-order fallback among verified TW exits only.
-    # Requires >=2 good nodes; on recovery fallback may switch back and disrupt
-    # a live AI stream. This mode is not enabled by default.
-    tw_names = names_by_country.get("TW", [])
-    if len(tw_names) >= 2:
+    for cc, names in sorted(names_by_country.items()):
+        if not re.fullmatch(r"[A-Z]{2}", cc) or not names:
+            raise ValueError("unexpected observed-country filter")
         extra.append(
-            "custom_proxy_group=" + AI_STABLE_TW_GROUP + "`fallback`"
-            + literal_filter(tw_names)
-            + "`" + AI_STABLE_TW_URL
-            + "`" + str(AI_STABLE_TW_INTERVAL) + "," + str(AI_STABLE_TW_TIMEOUT)
+            "custom_proxy_group=" + exit_group(cc) + "`select`" + literal_filter(names)
         )
-    # New choices only, appended *after* original AI choices. Existing saved/default
-    # AI selection and all existing groups remain unchanged.
-    ai_refs = "".join("`[]🧭核验" + REGIONS[cc]
-                      for cc in AI_ELIGIBLE_GROUP_OPTIONS if names_by_country.get(cc))
-    if len(tw_names) >= 2:
-        ai_refs += "`[]" + AI_STABLE_TW_GROUP
+    # Include every observed country, even HK or unrecognized country codes.
+    # A user might have ChatGPT access through an HK egress despite NotebookLM
+    # restrictions. No service qualification is inferred from this group.
+    ai_refs = "".join("`[]" + exit_group(cc) for cc in sorted(names_by_country))
     lines[target_index] += ai_refs
-    lines.extend(["", "; ===== PRIVATE VERIFIED-EGRESS CANDIDATE: NOT FOR PUBLIC COMMIT =====", *extra])
+    lines.extend(["", "; ===== PRIVATE REAL-EXIT CANDIDATE: PLATFORM USABILITY UNTESTED =====", *extra])
     return "\n".join(lines) + "\n"
 
 
@@ -187,7 +195,7 @@ def main() -> int:
         android, shadowrocket = generate_both(str(ini_path))
         secure_write(output / "Clash-Meta-Android.verified-candidate.yaml", android)
         secure_write(output / "Shadowrocket.verified-candidate.conf", shadowrocket)
-        print("Private candidate generated for both clients. Counts:",
+        print("Private observed-exit candidate (service support unverified). Counts:",
               {cc: len(names) for cc, names in verified.items()})
         print("Existing main branch, AI selection and installed clients remain unchanged.")
         return 0
