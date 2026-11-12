@@ -17,6 +17,9 @@ from pathlib import Path
 import socket
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from subscription_snapshot import snapshot_bytes, assert_current_snapshot
+
 try:
     import yaml
 except ImportError:  # Make a missing dependency an explicit safe failure.
@@ -132,16 +135,25 @@ def main() -> int:
         if dest.exists():
             raise ValueError("use a fresh private output directory; refusing to overwrite")
         names = validate_selected(json.loads(names_file.read_text(encoding="utf-8")))
+        # Read exactly once so the analyzed node list and private snapshot
+        # are from the same subscription refresh. No node data is logged.
+        raw_config = source.read_bytes()
         config, inventory = build_isolated(
-            yaml.safe_load(source.read_text(encoding="utf-8")), names, args.start_port
+            yaml.safe_load(raw_config), names, args.start_port
         )
+        inventory["subscription_snapshot"] = snapshot_bytes(raw_config)
+        inventory["source_node_count"] = len(yaml.safe_load(raw_config)["proxies"])
         reserve_check([listener["port"] for listener in config["listeners"]])
+        # If an OpenClash subscription refresh raced with preparation, do not
+        # create an apparently verified inventory from an obsolete source.
+        assert_current_snapshot(inventory["subscription_snapshot"], source)
         dest.mkdir(parents=True, mode=0o700)
         dest.chmod(0o700)
         secure_write(dest / "isolated-mihomo.yaml",
                      yaml.safe_dump(config, allow_unicode=True, sort_keys=False))
         secure_write(dest / "egress-inventory.json",
                      json.dumps(inventory, ensure_ascii=False, indent=2) + "\n")
+        assert_current_snapshot(inventory["subscription_snapshot"], source)
         print("Prepared", len(names), "isolated loopback listeners in a private directory.")
         print("No live OpenClash configuration changed; no node credentials printed.")
         print("Validate isolated-mihomo.yaml with a separately installed Mihomo binary before use.")
