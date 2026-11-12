@@ -27,6 +27,8 @@ def report(nodes, stamp=None):
         "schema_version": 1,
         "generated_at": (stamp or datetime.now(timezone.utc)).isoformat(),
         "nodes": nodes,
+        "subscription_snapshot": {"sha256": "a" * 64, "byte_count": 42},
+        "source_node_count": max(1, len(nodes)),
     }
 
 
@@ -44,6 +46,17 @@ class VerifiedCandidateTests(unittest.TestCase):
         self.assertEqual(names["CA"], ["加拿大出口"])
         self.assertEqual(names["US"], ["美国 01"])
         self.assertNotIn("香港 ChatGPT OK", names["TW"])
+
+    def test_report_requires_subscription_identity_even_if_fresh(self):
+        rec = report([record()])
+        for broken in [
+            {k:v for k,v in rec.items() if k != "subscription_snapshot"},
+            rec | {"subscription_snapshot": {"sha256": "not-a-real-hash", "byte_count": 42}},
+            rec | {"source_node_count": 0},
+        ]:
+            with self.subTest(fields=tuple(sorted(broken))):
+                with self.assertRaises(ValueError):
+                    candidate.verified_names(broken)
 
     def test_reject_expired_future_and_naive(self):
         now = datetime.now(timezone.utc)
