@@ -9,18 +9,22 @@ on:
       - scripts/audit_egress.py
       - scripts/render_verified_candidate.py
       - scripts/prepare_isolated_audit.py
+      - scripts/subscription_snapshot.py
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
+      - tests/test_subscription_snapshot.py
       - .github/workflows/check-egress-candidate.yml
   pull_request:
     paths:
       - scripts/audit_egress.py
       - scripts/render_verified_candidate.py
       - scripts/prepare_isolated_audit.py
+      - scripts/subscription_snapshot.py
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
+      - tests/test_subscription_snapshot.py
 
 permissions:
   contents: read
@@ -38,6 +42,6 @@ jobs:
       - name: Install isolated-audit YAML parser
         run: python -m pip install PyYAML==6.0.2
       - name: Compile scripts
-        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py
+        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py
       - name: Unit and existing generator integration tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
