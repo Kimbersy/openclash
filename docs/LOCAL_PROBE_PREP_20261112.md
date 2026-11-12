@@ -49,6 +49,7 @@ ruby /tmp/prepare-local-probe.rb HK 1
 ```sh
 umask 077
 ruby -rpsych -rtmpdir -rdigest -rjson -rfileutils <<'RUBY'
+# encoding: UTF-8
 begin
   files=Dir['/etc/openclash/config/*.{yaml,yml}'].map { |f| File.expand_path(f) }
   v=`uci -q get openclash.config.config_path 2>/dev/null`.strip
@@ -89,6 +90,6 @@ end
 RUBY
 ```
 
-上述短代码已在独立 Ruby 3.3 环境用合成私有 YAML 测试：单一 HK 节点输出包含 `STARTED=NO`，目录文件权限 0600、listener只监听127.0.0.1，生成文件中保留原私有节点内容；若没有 HK 节点仅返回 `PRIVATE_PREP_FAILED`。**这是本地模拟，不是家庭路由器实机通过**；路由器 Ruby/Psych 版本与 OpenClash YAML 的真实兼容性仍待用户回执。如果失败就停，不导出任何真实 YAML 内容或订阅信息。
+上述短代码追加了 Ruby STDIN 的 `# encoding: UTF-8` 声明，已在 **`LANG=C`（默认外部编码 US-ASCII）** 的本地 bash here-doc 模拟中使用假香港节点测试通过，避免路由器环境出现 `invalid multibyte char (US-ASCII)`。上述短代码已在独立 Ruby 3.3 环境用合成私有 YAML 测试：单一 HK 节点输出包含 `STARTED=NO`，目录文件权限 0600、listener只监听127.0.0.1，生成文件中保留原私有节点内容；若没有 HK 节点仅返回 `PRIVATE_PREP_FAILED`。**这是本地模拟，不是家庭路由器实机通过**；路由器 Ruby/Psych 版本与 OpenClash YAML 的真实兼容性仍待用户回执。如果失败就停，不导出任何真实 YAML 内容或订阅信息。
 
 完成后只报告匿名的 `PREPARED_PRIVATE_DIR` 与计数；**不可 cat/screenshot `isolated.yaml` 或 `snapshot.json`**，也不要重启/修改现有 OpenClash，下一步另做配置解析安全验证。
