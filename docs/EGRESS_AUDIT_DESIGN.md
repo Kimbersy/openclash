@@ -31,6 +31,31 @@
 
 平台可用性受账号、地区政策、机场二次分流、DNS 等因素影响；一条 HTTPS 204 或页面可连接只证明局部连通性。没有实际业务证据时，任何服务标记均保持 `unknown`。真实 IP 也可能因机场运营调整而改变，检测结果须设有效期并复测。
 
+## 动态机场订阅：不固定节点数量、不继承换线后的旧结论
+
+**每次机场订阅刷新都可能改变节点数量、名字、连接地址、端口、密码或传输参数。前述「CONFIG_2 有58个节点」只是 2026-11-12 14:46 的实机快照，绝不是订阅固有数量。** 变更过程要按以下四步完成，且不能直接切换正在使用的 AI 会话：
+
+1. **发现/差异**：从当前 UCI 所选有效节点配置重新扫描节点集合。候选 `scripts/reconcile_subscription.py` 将每个节点名字与完整连接定义在私有环境中生成本地 SHA-256 指纹，可统计 `added / removed / replaced_same_name / unchanged`。重命名按「旧节点删除 + 新节点新增」处理；同名换了出口服务器、端口、密码或其它字段会标成 `replaced_same_name`。**只输出数量，不在公共 GitHub 上传私人 manifest 或节点地址/密码**。
+2. **订阅快照绑定到测试**：`scripts/prepare_isolated_audit.py` 读取订阅 YAML 一次，私有 `egress-inventory.json` 保存 `subscription_snapshot`（原始 YAML SHA-256/大小）与 `source_node_count`，从实际订阅中选择有限节点用于独立进程测试。没有固定的 58、169 或其它常量。
+3. **失效/重验**：`audit_egress.py` 读取真实节点前后、`render_verified_candidate.py` 生成双端候选前后，都会比较**当前源文件完整快照**。只要订阅改变，即使6小时内的 GeoIP 检测结果也**拒绝直接复用**，须按新订阅重新审计；更改仅是 YAML 空白也会保守作废，不会错误继承旧路由的服务资格。若 AI 服务级可用性未复测，则一律为 `unknown`。移除的节点不可保留在新候选中，新节点没有验证时不可自动分配 AI 服务。
+4. **可控投产**：区分「机场更新已成功」「私有真实 IP/服务复测通过」「双端候选生成/解析通过」「用户明确批准切换」四个事件；前两步**不改变当前 AI 手动选择和正在使用的连接**。若某批节点无法完成验证，应保留原有业务策略但不声称旧快照有效，也不在新策略中自动白名单。不直接在路由器上安装 cron 或订阅更新钩子，待实机验证并获得部署授权后才对接现有 OpenClash 更新完成事件/低频轮询。
+
+新的私有跑批接口（仅为未来可信独立运行环境的说明；路由器目前已确认 Python3 未安装，**不要在家用路由器直接照抄执行**）：
+
+```sh
+# 订阅更新后，在私有目录保留前后两份 manifest；每次输出新的文件，不覆盖
+python3 scripts/reconcile_subscription.py --node-config /private/current.yaml --previous-manifest /private/last-manifest.json --manifest-output /private/new-manifest.json
+python3 scripts/prepare_isolated_audit.py --node-config /private/current.yaml --names-json /private/selected-names.json --output-dir /private/isolation-session-002
+python3 scripts/audit_egress.py --inventory /private/isolation-session-002/egress-inventory.json --node-config /private/current.yaml --report /private/egress-session-002.json
+python3 scripts/render_verified_candidate.py --report /private/egress-session-002.json --node-config /private/current.yaml --source-ini Clash-Li.ini --output-dir /private/candidate-session-002
+```
+
+所有 `/private/` 路径均为示例，**绝不能将真实机场 YAML、订阅 URL、密码或报告写到公共仓库/聊天**。对于没有前次清单的首次启动，可以省略 `--previous-manifest`，显示初始新增总数。任何源文件变化都需以当前 UCI 所选路径为准重新获取，而不能引用历史命名的固定文件或上传后的旧份额。测试报告绑定的是检测时的源**文件快照**，不能当成一个永远有效的节点身份。
+
+**即使快照没有变化，AI 服务端策略可能变化**：GeoIP 双源检查只证明出口国家，两项服务可能有不同账号/地区/机场二次分流表现。ChatGPT、NotebookLM、Gemini 仍各自做真实会话验收与有效期管理。后续若只想对未变化节点复用最近的测试结果，应新增并验证「节点身份 + TTL + 服务验收回执」的独立缓存；**当前实现选择全快照变更即失效，先确保准确和不误切**。
+
+**手机操作者下一步**：不运行 Python、不安装 Docker 镜像。使用候选 `scripts/inspect_active_subscription.rb` 的 Ruby 标准库 `Psych` 在 iStoreOS **只读**盘点 UCI 当前所选配置的全部节点：输出 `CURRENT_NODE_COUNT`、`LABEL_COUNTS`（HK/TW/JP/US/SG/KR/GB/FR/CA/AU/DE/NL/UNKNOWN/AMBIGUOUS）；这只代表机场标称名称，不代表真实 IP 地理位置。可使用固定提交的脚本代码审查后复制运行，必须避免输出私有 YAML 正文。
+
 ## 如何在家庭路由器安全完成真实出口检测
 
 现有 iStoreOS 旁路由 `x86_64`、内存 `MemAvailable≈1100MiB`，OpenClash `v0.47.156` + Mihomo `alpha-ge183c58` 正运行，`ruby` 与 `curl` 可用，宿主 Python 未安装；`/etc/openclash/core/clash_meta` 存在可执行。2026-11-12 14:46 真实 UCI 返回 `UCI_ACTIVE=CONFIG_2`，该私有 YAML 含58个内嵌节点；另一未选中配置含169个条目。**58个节点是否在线或支持各平台仍未实测**。
