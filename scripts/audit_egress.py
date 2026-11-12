@@ -76,6 +76,11 @@ def probe(proxy_url: str, timeout: int = 8) -> tuple[list[dict], list[str]]:
 
 
 def classify(name: str, observations: list[dict], errors: list[str]) -> dict:
+    """Name/real egress are independent. A country mismatch is NOT unusable.
+
+    Platform suitability (ChatGPT, NotebookLM, Gemini, etc.) must be evaluated
+    separately. A geolocation probe alone cannot certify service accessibility.
+    """
     claim = advertised_country(name)
     sources = {r.get("source") for r in observations}
     ips = {r.get("ip") for r in observations}
@@ -84,22 +89,25 @@ def classify(name: str, observations: list[dict], errors: list[str]) -> dict:
         "name": name, "claimed_country": claim, "observed_country": None,
         "observed_ips": sorted(ip for ip in ips if ip),
         "evidence_sources": sorted(src for src in sources if src),
+        "egress_verified": False,
         "status": "unknown", "probe_errors": errors,
+        "service_availability": {},  # no platform claims without separate checks
     }
-    if len(sources) != 2:
+    if sources != {"ipinfo", "ipapi"}:
         record["reason"] = "insufficient_sources"
     elif len(ips) != 1 or len(countries) != 1:
         record["status"] = "inconsistent"
         record["reason"] = "geolocation_or_egress_conflict"
-    elif claim is None:
-        record["reason"] = "missing_or_ambiguous_country_in_name"
     else:
         actual = next(iter(countries))
         record["observed_country"] = actual
-        record["status"] = "match" if actual == claim else "mismatch"
-        record["reason"] = "two_source_agreement"
+        record["egress_verified"] = True
+        if claim is None:
+            record["reason"] = "missing_or_ambiguous_country_in_name"
+        else:
+            record["status"] = "match" if actual == claim else "mismatch"
+            record["reason"] = "two_source_agreement"
     return record
-
 
 def exact_name_regex(names: list[str]) -> str:
     # Escape literal proxy names for compatibility with Mihomo / Shadowrocket regex.
@@ -127,16 +135,26 @@ def audit(inventory: dict, timeout: int = 8) -> dict:
         seen_proxies.add(url)
         observations, errors = probe(url, timeout)
         records.append(classify(name, observations, errors))
-    verified = defaultdict(list)
+    matched_label = defaultdict(list)
+    observed_exit = defaultdict(list)
     for record in records:
+        # Comparison to a node label is only informational. Real exit country,
+        # when independently verified, determines geolocation grouping.
         if record["status"] == "match":
-            verified[record["claimed_country"]].append(record["name"])
+            matched_label[record["claimed_country"]].append(record["name"])
+        if record["egress_verified"]:
+            observed_exit[record["observed_country"]].append(record["name"])
     return {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "meaning": "two source IP+country observations, not physical location or platform eligibility",
+        "meaning": "two-source real egress country; NOT AI platform eligibility or stable connection proof",
         "nodes": records,
-        "verified_name_filters": {country: exact_name_regex(verified[country]) for country in COUNTRIES},
+        # Retain legacy for existing report consumers, but new candidates must
+        # rely on observed_exit_name_filters instead of name-agreement only.
+        "verified_name_filters": {country: exact_name_regex(matched_label[country]) for country in COUNTRIES},
+        "observed_exit_name_filters": {
+            country: exact_name_regex(names) for country, names in sorted(observed_exit.items())
+        },
     }
 
 
