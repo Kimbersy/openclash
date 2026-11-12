@@ -15,6 +15,22 @@
 
 重要兼容点：原 Android 生成器会清除某些正则的开头 ^ 和结尾 $；本候选使用 (?:^(?:节点1|节点2)$) 形式包裹精确名称，防止清理后重新成为模糊名称匹配。测试必须覆盖真实两个生成器。
 
+## AI 稳态候选组（2026-11-12，未安装）
+
+- 原有 `🤖 AI` select 选项与顺序、台湾原有 `🇹🇼台湾-自动`、YouTube / Disney+ 等规则不改变。只在当前私有候选中追加可手动选择的组。
+- 只有真实出口 IP 与国家经 ipinfo、ipapi 两源一致验证，且台湾节点至少两个，才追加 `🛡️AI 稳态🇹🇼台湾`：标准 fallback，精确筛选已验证的 TW 节点；探测 `https://www.gstatic.com/generate_204`，间隔 600 秒、超时 10 秒（原台湾自动组为 180 秒、5 秒）。单节点不能假称具备自动容灾。
+- fallback 仍可能在故障和恢复时更换线路，**不保证 AI 长连接不中断**，也不提供冷却时间/防抖算法。`gstatic 204` 只能测连通性，不能证明 Gemini/ChatGPT 地区资格。用户需要主动在 AI 选择器中试用这个新选项。
+- 同一 `Clash-Li.ini` 源同时生成 Android/Mihomo、Shadowrocket 候选配置，已用两套原有转换器测试。正式订阅、Worker、设备尚未变化。
+- 参考 Mihomo 官方组字段 https://wiki.metacubex.one/en/config/proxy-groups/ ，Subconverter group INI 语法 https://github.com/tindy2013/subconverter/blob/master/README-cn.md 。
+
+## 不切换现有 AI 节点的真实出口检测准备（2026-11-12，未实机）
+
+- 新增 `scripts/prepare_isolated_audit.py`：从**仅本地保存**的机场 `proxies:` YAML 和 JSON 精确节点名称列表生成一个**独立 Mihomo 进程**使用的最小配置，并产生现有 `audit_egress.py` 所需的逐节点 loopback HTTP 端口映射。
+- 监听仅为 `127.0.0.1:17801+`；每个入站指定一个真实代理节点，`MATCH,REJECT` 兜底，防止不受控直连。不会启用 TUN、透明代理、LAN 服务或外部控制器；不会启动或修改正在使用的 OpenClash。
+- 仅选取 1–32 个节点、拒绝保留节点名/重复名/无效端口，预查端口占用；私有配置和名称只在指定的**非公开 Git 仓库外**的目录存放（目录 0700、文件 0600）。生成的 Mihomo 配置包含私密节点凭据，严禁提交到 GitHub、发送聊天或公开日志。
+- 安全流程：在用户可信设备/路由器的独立运行环境安装 PyYAML==6.0.2，私有准备 `provider-nodes.yaml` 和 `selected-names.json`（例如 `["台湾01", "台湾02"]`），运行准备器生成 `isolated-mihomo.yaml`、`egress-inventory.json`；再用 `mihomo -t -d <private_dir> -f <private_yaml>` **检查配置**，确认后在单独进程运行 Mihomo，再执行 `audit_egress.py` 与 `render_verified_candidate.py`。
+- 用户目前只有手机，**不要求现在在手机运行任何命令**。以上程序的输出安全与业务兼容目前只完成离线 CI；没有执行真实机场节点访问，没有修改路由器。测试时优先以家里电信出口为起点，不能用 GitHub 美国托管环境等同家庭路径。
+- 官方依据：https://wiki.metacubex.one/en/config/inbound/listeners/ （listener 支持 `proxy` 指定出站节点）；配置检查仅保证可解析，不等于真实节点可用。
 ## 私有使用示例（仅限已准备好逐节点本地代理端口）
 
 私有 JSON 结构：
