@@ -21,7 +21,7 @@ import sys
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from subscription_snapshot import read_private_snapshot, validate_snapshot, MAX_CONFIG_BYTES
+from subscription_snapshot import read_private_snapshot, validate_snapshot, snapshot_bytes, MAX_CONFIG_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -112,7 +112,7 @@ def main() -> int:
         if not 0<len(raw)<=MAX_CONFIG_BYTES:
             raise ValueError("private YAML exceeds size limit")
         config=yaml.safe_load(raw)
-        manifest=build_manifest(config,read_private_snapshot(source))
+        # Fingerprint the EXACT bytes parsed above. Never hash a second file\n        # read to establish identity: a refresh could race in between.\n        manifest=build_manifest(config,snapshot_bytes(raw))
         prior=None
         if args.previous_manifest is not None:
             old=private_file(args.previous_manifest)
