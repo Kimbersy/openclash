@@ -112,7 +112,9 @@ def main() -> int:
         if not 0<len(raw)<=MAX_CONFIG_BYTES:
             raise ValueError("private YAML exceeds size limit")
         config=yaml.safe_load(raw)
-        # Fingerprint the EXACT bytes parsed above. Never hash a second file\n        # read to establish identity: a refresh could race in between.\n        manifest=build_manifest(config,snapshot_bytes(raw))
+        # Fingerprint the EXACT bytes parsed above. Never hash a second file
+        # read to establish identity: a refresh could race in between.
+        manifest=build_manifest(config,snapshot_bytes(raw))
         prior=None
         if args.previous_manifest is not None:
             old=private_file(args.previous_manifest)
