@@ -39,3 +39,56 @@ ruby /tmp/prepare-local-probe.rb HK 1
 - GitHub Actions [#43196657859](https://github.com/Kimbersy/openclash/actions/runs/43196657859) 已对**固定 Git 源 `c788706367d3122e1f6b6e94d8d1a5b3afbe8183`**运行 Ruby 语法与 46 项模拟/跨端测试 `success`，其中单节点脚本只使用合成假的节点凭据。
 - 未有真实机场出口 IP、各 AI 服务资格、手机端业务或者 OpenClash 第二核心安装的验收回执。任何真实节点数量和服务资格都必须以未来实际采样为准。
 - Mihomo 官方文档：[`listeners.proxy`](https://wiki.metacubex.one/en/config/inbound/listeners/) 可指定一个独立出站节点；[入站安全](https://wiki.metacubex.one/en/config/inbound/) 强调 HTTP/SOCKS 监听不能暴露到公网。
+
+## 2026-11-12 19:18：路由器 GitHub 下载失败后的免下载回退
+
+实机失败先后记录：`raw.githubusercontent.com` 报 `curl (35) SSL_ERROR_SYSCALL`；`api.github.com` 公共 Git blob 请求报 `curl (22) HTTP 403`。由于命令使用 `&&`，Ruby 脚本没运行；本机尚未生成单节点配置。不要推断是机场节点不能访问，更不能使用 `curl -k` 或调整现有 OpenClash。
+
+**当前最快的安全回退**是从聊天中将下列短小的 Ruby here-doc 直接粘入 iStoreOS TTYD：它不需要联网、不安装软件、不执行先前下载失败的文件。它只在内存读取当前 UCI 配置，选择第一个标称 HK 样本，写入新建的私有 `/tmp/openclash-probe-*` 目录（0700）、两个文件（0600），监听声明固定 `127.0.0.1:17881`，并绑定原订阅字节快照。**没有运行新 Mihomo**，因此其监听声明不等于端口已开放。
+
+```sh
+umask 077
+ruby -rpsych -rtmpdir -rdigest -rjson -rfileutils <<'RUBY'
+begin
+  files=Dir['/etc/openclash/config/*.{yaml,yml}'].map { |f| File.expand_path(f) }
+  v=`uci -q get openclash.config.config_path 2>/dev/null`.strip
+  raise 'no selected file' if v.empty?
+  src=File.expand_path(v.start_with?('/') ? v : File.join('/etc/openclash/config',v))
+  raise 'wrong file' unless files.include?(src)
+  raw=File.binread(src)
+  raise 'invalid size' unless raw.bytesize.between?(1,12_000_000)
+  cfg=Psych.safe_load(raw,aliases:false)
+  nodes=cfg.fetch('proxies')
+  raise 'bad nodes' unless nodes.is_a?(Array) && nodes.all? { |n| n.is_a?(Hash) && n['name'].is_a?(String) && n['type'].is_a?(String) }
+  raise 'duplicates' unless nodes.map { |n| n['name'] }.uniq.size==nodes.size
+  hk=nodes.select { |n| /香港|🇭🇰|\b(?:HK|HKG|Hong\s*Kong)\b/i.match?(n['name']) }
+  chosen=hk.first
+  raise 'no HK sample' unless chosen
+  raise 'dependent proxy' if chosen['dialer-proxy'] || %w[direct reject pass].include?(chosen['type'].downcase)
+  raise 'subscription changed' unless File.binread(src)==raw
+  conf={'allow-lan'=>false,'mode'=>'rule','log-level'=>'silent',
+        'port'=>0,'socks-port'=>0,'mixed-port'=>0,'redir-port'=>0,'tproxy-port'=>0,
+        'external-controller'=>'','tun'=>{'enable'=>false},
+        'profile'=>{'store-selected'=>false,'store-fake-ip'=>false},
+        'proxies'=>[chosen],
+        'listeners'=>[{'name'=>'audit-only','type'=>'http','listen'=>'127.0.0.1',
+                       'port'=>17881,'proxy'=>chosen['name']}], 'rules'=>['MATCH,REJECT']}
+  dir=Dir.mktmpdir('openclash-probe-','/tmp')
+  File.chmod(0700,dir)
+  File.open(File.join(dir,'isolated.yaml'),'wx',0600) { |f| f.write(Psych.dump(conf)) }
+  metadata={'sha256'=>Digest::SHA256.hexdigest(raw),'byte_count'=>raw.bytesize}
+  File.open(File.join(dir,'snapshot.json'),'wx',0600) { |f| f.write(JSON.generate(metadata)) }
+  raise 'subscription changed' unless File.binread(src)==raw
+  puts "PREPARED_PRIVATE_DIR=#{dir}"
+  puts "CURRENT_NODE_COUNT=#{nodes.size} HK_CANDIDATES=#{hk.size}"
+  puts 'LISTEN=127.0.0.1:17881 STARTED=NO'
+rescue StandardError
+  FileUtils.remove_entry(dir) if defined?(dir) && dir && File.directory?(dir)
+  warn 'PRIVATE_PREP_FAILED'
+end
+RUBY
+```
+
+上述短代码已在独立 Ruby 3.3 环境用合成私有 YAML 测试：单一 HK 节点输出包含 `STARTED=NO`，目录文件权限 0600、listener只监听127.0.0.1，生成文件中保留原私有节点内容；若没有 HK 节点仅返回 `PRIVATE_PREP_FAILED`。**这是本地模拟，不是家庭路由器实机通过**；路由器 Ruby/Psych 版本与 OpenClash YAML 的真实兼容性仍待用户回执。如果失败就停，不导出任何真实 YAML 内容或订阅信息。
+
+完成后只报告匿名的 `PREPARED_PRIVATE_DIR` 与计数；**不可 cat/screenshot `isolated.yaml` 或 `snapshot.json`**，也不要重启/修改现有 OpenClash，下一步另做配置解析安全验证。
