@@ -13,6 +13,7 @@ on:
       - scripts/reconcile_subscription.py
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
+      - scripts/prepare_local_probe_core.rb
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -20,6 +21,7 @@ on:
       - tests/test_reconcile_subscription.py
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
+      - tests/test_prepare_local_probe_core.py
       - .github/workflows/check-egress-candidate.yml
   pull_request:
     paths:
@@ -30,6 +32,7 @@ on:
       - scripts/reconcile_subscription.py
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
+      - scripts/prepare_local_probe_core.rb
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -37,6 +40,7 @@ on:
       - tests/test_reconcile_subscription.py
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
+      - tests/test_prepare_local_probe_core.py
 
 permissions:
   contents: read
@@ -54,7 +58,7 @@ jobs:
       - name: Install isolated-audit YAML parser
         run: python -m pip install PyYAML==6.0.2
       - name: Ruby iStoreOS census syntax
-        run: ruby -c scripts/inspect_active_subscription.rb && ruby -c scripts/prepare_local_probe.rb
+        run: ruby -c scripts/inspect_active_subscription.rb && ruby -c scripts/prepare_local_probe.rb && ruby -c scripts/prepare_local_probe_core.rb
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
       - name: Unit and existing generator integration tests
