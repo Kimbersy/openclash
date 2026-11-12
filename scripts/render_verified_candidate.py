@@ -15,6 +15,9 @@ from pathlib import Path
 import re
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from subscription_snapshot import validate_snapshot, assert_current_snapshot
+
 ROOT = Path(__file__).resolve().parents[1]
 REGIONS = {
     "TW": "🇹🇼台湾",
@@ -48,6 +51,12 @@ def verified_names(report: dict, now: datetime | None = None, ttl_hours: int = 6
     """
     if report.get("schema_version") != 1 or not isinstance(report.get("nodes"), list):
         raise ValueError("audit schema invalid")
+    # A time-bounded egress report is not necessarily current: airports can
+    # add/remove/rename nodes or change credentials at any subscription refresh.
+    validate_snapshot(report.get("subscription_snapshot"))
+    total = report.get("source_node_count")
+    if type(total) is not int or total < 1 or len(report["nodes"]) > total:
+        raise ValueError("missing/invalid dynamic subscription node count")
     if not (1 <= ttl_hours <= 48):
         raise ValueError("TTL must be 1-48 hours")
     now = now or datetime.now(timezone.utc)
@@ -175,6 +184,8 @@ def secure_write(path: Path, content: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate PRIVATE cross-device configs using verified exit IP evidence")
     parser.add_argument("--report", type=Path, required=True, help="private result from audit_egress.py")
+    parser.add_argument("--node-config", type=Path, required=True,
+                        help="PRIVATE latest active subscription YAML; must match audit snapshot")
     parser.add_argument("--source-ini", type=Path, default=ROOT / "Clash-Li.ini")
     parser.add_argument("--output-dir", type=Path, required=True, help="PRIVATE directory outside public git repo")
     parser.add_argument("--ttl-hours", type=int, default=6)
@@ -185,16 +196,21 @@ def main() -> int:
         if output == ROOT or ROOT in output.parents:
             raise ValueError("output directory must be outside the public repository")
         report = json.loads(args.report.read_text(encoding="utf-8"))
+        assert_current_snapshot(report.get("subscription_snapshot"), args.node_config)
         verified = verified_names(report, ttl_hours=args.ttl_hours)
         source = args.source_ini.read_text(encoding="utf-8")
         candidate = build_candidate_ini(source, verified)
-        output.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if output.exists():
+            raise ValueError("use fresh private output directory after each subscription refresh")
+        assert_current_snapshot(report["subscription_snapshot"], args.node_config)
+        output.mkdir(parents=True, exist_ok=False, mode=0o700)
         output.chmod(0o700)
         ini_path = output / "Clash-Li.verified-candidate.ini"
         secure_write(ini_path, candidate)
         android, shadowrocket = generate_both(str(ini_path))
         secure_write(output / "Clash-Meta-Android.verified-candidate.yaml", android)
         secure_write(output / "Shadowrocket.verified-candidate.conf", shadowrocket)
+        assert_current_snapshot(report["subscription_snapshot"], args.node_config)
         print("Private observed-exit candidate (service support unverified). Counts:",
               {cc: len(names) for cc, names in verified.items()})
         print("Existing main branch, AI selection and installed clients remain unchanged.")
