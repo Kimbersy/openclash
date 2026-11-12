@@ -12,6 +12,13 @@ egress = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(egress)
 
 
+def with_subscription_snapshot(inv: dict) -> dict:
+    return inv | {
+        "subscription_snapshot": {"sha256": "b" * 64, "byte_count": 99},
+        "source_node_count": max(1, len(inv.get("nodes", []))),
+    }
+
+
 class EgressAuditTests(unittest.TestCase):
     def setUp(self):
         self.tw = [
@@ -59,7 +66,7 @@ class EgressAuditTests(unittest.TestCase):
         with patch.object(egress, "probe", side_effect=[
             (self.hk, []), (self.hk, []), (self.tw, [])
         ]):
-            report = egress.audit(inventory)
+            report = egress.audit(with_subscription_snapshot(inventory))
         self.assertEqual([x["observed_country"] for x in report["nodes"]], ["HK", "HK", "TW"])
         self.assertTrue(re.search(report["observed_exit_name_filters"]["HK"], "台湾05"))
         self.assertTrue(re.search(report["observed_exit_name_filters"]["HK"], "香港03"))
@@ -76,6 +83,17 @@ class EgressAuditTests(unittest.TestCase):
         self.assertEqual(egress.classify("台湾01", diff_ip, [])["status"], "inconsistent")
         diff_country = [self.tw[0], {**self.tw[1], "country": "US"}]
         self.assertEqual(egress.classify("台湾01", diff_country, [])["status"], "inconsistent")
+
+    def test_report_pins_current_subscription_snapshot(self):
+        inv=with_subscription_snapshot({"schema_version": 1, "nodes": [
+            {"name": "日本01", "proxy_url": "http://127.0.0.1:7191"},
+        ]})
+        with patch.object(egress, "probe", return_value=(self.tw, [])):
+            out=egress.audit(inv)
+        self.assertEqual(out["subscription_snapshot"], inv["subscription_snapshot"])
+        self.assertEqual(out["source_node_count"], 1)
+        with self.assertRaises(ValueError):
+            egress.audit({"schema_version": 1, "nodes": inv["nodes"]})
 
     def test_loopback_only_no_credentials(self):
         for valid in ("http://127.0.0.1:8081", "http://localhost:8000", "http://[::1]:8999"):
@@ -105,7 +123,7 @@ class EgressAuditTests(unittest.TestCase):
         ):
             with self.subTest(nodes=nodes), self.assertRaises(ValueError):
                 with patch.object(egress, "probe", return_value=(self.tw, [])):
-                    egress.audit({"schema_version": 1, "nodes": nodes})
+                    egress.audit(with_subscription_snapshot({"schema_version": 1, "nodes": nodes}))
 
     def test_mock_end_to_end_report_and_exact_filter(self):
         inventory = {"schema_version": 1, "nodes": [
@@ -114,7 +132,7 @@ class EgressAuditTests(unittest.TestCase):
             {"name": "未标记", "proxy_url": "http://127.0.0.1:7103"},
         ]}
         with patch.object(egress, "probe", side_effect=[(self.tw, []), (self.hk, []), ([], ["ipinfo:TimeoutError"])]):
-            out = egress.audit(inventory)
+            out = egress.audit(with_subscription_snapshot(inventory))
         self.assertEqual([n["status"] for n in out["nodes"]], ["match", "mismatch", "unknown"])
         self.assertTrue(re.search(out["verified_name_filters"]["TW"], "台湾01"))
         self.assertFalse(re.search(out["verified_name_filters"]["TW"], "台湾02"))
@@ -133,9 +151,9 @@ class EgressAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             egress.audit({"schema_version": 0, "nodes": []})
         with self.assertRaises(ValueError):
-            egress.audit({"schema_version": 1, "nodes": [{}]})
+            egress.audit(with_subscription_snapshot({"schema_version": 1, "nodes": [{}]}))
         with self.assertRaises(ValueError):
-            egress.audit({"schema_version": 1, "nodes": [{"name": "台湾\n01", "proxy_url": "http://127.0.0.1:80"}]})
+            egress.audit(with_subscription_snapshot({"schema_version": 1, "nodes": [{"name": "台湾\n01", "proxy_url": "http://127.0.0.1:80"}]}))
 
 
 if __name__ == "__main__":
