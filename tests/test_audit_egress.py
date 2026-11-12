@@ -37,9 +37,41 @@ class EgressAuditTests(unittest.TestCase):
         self.assertEqual(rec["observed_country"], "HK")
         self.assertEqual(rec["claimed_country"], "TW")
 
+    def test_real_hk_exit_independent_from_taiwan_label_and_service(self):
+        mislabeled = egress.classify("台湾 05", self.hk, [])
+        self.assertEqual(mislabeled["claimed_country"], "TW")
+        self.assertEqual(mislabeled["observed_country"], "HK")
+        self.assertEqual(mislabeled["status"], "mismatch")
+        self.assertTrue(mislabeled["egress_verified"])
+        self.assertEqual(mislabeled["service_availability"], {})
+        unknown_label = egress.classify("IPLC 独立节点", self.hk, [])
+        self.assertIsNone(unknown_label["claimed_country"])
+        self.assertEqual(unknown_label["observed_country"], "HK")
+        self.assertTrue(unknown_label["egress_verified"])
+        self.assertEqual(unknown_label["status"], "unknown")
+
+    def test_egress_country_filters_include_mismatches_and_unlabeled_nodes(self):
+        inventory = {"schema_version": 1, "nodes": [
+            {"name": "台湾05", "proxy_url": "http://127.0.0.1:7181"},
+            {"name": "香港03", "proxy_url": "http://127.0.0.1:7182"},
+            {"name": "IPLC", "proxy_url": "http://127.0.0.1:7183"},
+        ]}
+        with patch.object(egress, "probe", side_effect=[
+            (self.hk, []), (self.hk, []), (self.tw, [])
+        ]):
+            report = egress.audit(inventory)
+        self.assertEqual([x["observed_country"] for x in report["nodes"]], ["HK", "HK", "TW"])
+        self.assertTrue(re.search(report["observed_exit_name_filters"]["HK"], "台湾05"))
+        self.assertTrue(re.search(report["observed_exit_name_filters"]["HK"], "香港03"))
+        self.assertTrue(re.search(report["observed_exit_name_filters"]["TW"], "IPLC"))
+        self.assertFalse(re.search(report["verified_name_filters"]["TW"], "台湾05"))
+        self.assertEqual(report["nodes"][0]["service_availability"], {})
+
     def test_unknown_and_inconsistent(self):
         self.assertEqual(egress.classify("台湾01", self.tw[:1], [])["status"], "unknown")
         self.assertEqual(egress.classify("IPLC", self.tw, [])["status"], "unknown")
+        self.assertTrue(egress.classify("IPLC", self.tw, [])["egress_verified"])
+        self.assertIsNone(egress.classify("台湾01", self.tw[:1], [])["observed_country"])
         diff_ip = [self.tw[0], {**self.tw[1], "ip": "203.0.113.7"}]
         self.assertEqual(egress.classify("台湾01", diff_ip, [])["status"], "inconsistent")
         diff_country = [self.tw[0], {**self.tw[1], "country": "US"}]
