@@ -78,6 +78,29 @@ class VerifiedCandidateTests(unittest.TestCase):
         self.assertIn("custom_proxy_group=🧭核验🇹🇼台湾", ini)
         self.assertNotIn("203.0.113.8", ini)
 
+    def test_opt_in_stable_tw_fallback_requires_two_verified_exits(self):
+        src = ("ruleset=🤖 AI,example\ncustom_proxy_group=🤖 AI`select`[]🇸🇬新加坡`[]🇹🇼台湾\n"
+               "custom_proxy_group=🏰 Disney+`select`[]🇸🇬新加坡\n")
+        with_one = candidate.build_candidate_ini(src, {"TW": ["台湾 01"]})
+        self.assertNotIn("🛡️AI 稳态🇹🇼台湾", with_one)
+        with_two = candidate.build_candidate_ini(src, {"TW": ["台湾 01", "台湾 02"]})
+        original_ai = src.splitlines()[1]
+        self.assertIn(original_ai, with_two)
+        self.assertIn("`[]🛡️AI 稳态🇹🇼台湾", with_two)
+        self.assertIn("custom_proxy_group=🛡️AI 稳态🇹🇼台湾`fallback`", with_two)
+        self.assertIn("`https://www.gstatic.com/generate_204`600,10", with_two)
+        self.assertIn("custom_proxy_group=🏰 Disney+", with_two)
+        self.assertNotIn("🛡️AI 稳态🇭🇰香港", with_two)
+
+    def test_stable_tw_fallback_never_accepts_unverified_names(self):
+        src = "custom_proxy_group=🤖 AI`select`[]🇹🇼台湾\n"
+        ini = candidate.build_candidate_ini(src, {"TW": ["台湾 01", "台湾(02)"]})
+        group = next(line for line in ini.splitlines()
+                     if line.startswith("custom_proxy_group=🛡️AI 稳态🇹🇼台湾"))
+        self.assertIn(candidate.literal_filter(["台湾 01", "台湾(02)"]), group)
+        self.assertNotIn("台湾 03", group)
+        self.assertNotIn("香港", group)
+
     def test_candidate_requires_verified_nodes(self):
         with self.assertRaises(ValueError):
             candidate.build_candidate_ini("custom_proxy_group=🤖 AI" + chr(96) + "select", {})
@@ -85,13 +108,19 @@ class VerifiedCandidateTests(unittest.TestCase):
     def test_actual_generators_on_safe_test_input(self):
         root = Path(__file__).resolve().parents[1]
         src = (root / "Clash-Li.ini").read_text(encoding="utf-8")
-        new = candidate.build_candidate_ini(src, {"TW": ["台湾 01"], "JP": ["日本(02)"]})
+        new = candidate.build_candidate_ini(src, {"TW": ["台湾 01", "台湾 02"], "JP": ["日本(02)"]})
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "Clash-Li.candidate.ini"
             path.write_text(new, encoding="utf-8")
             android, shadowrocket = candidate.generate_both(str(path))
             self.assertIn("🧭核验🇹🇼台湾", android)
             self.assertIn("🧭核验🇹🇼台湾", shadowrocket)
+            self.assertIn("🛡️AI 稳态🇹🇼台湾", android)
+            self.assertIn("🛡️AI 稳态🇹🇼台湾 = fallback", shadowrocket)
+            self.assertIn("interval=600,timeout=10", shadowrocket)
+            self.assertIn("(?:^(?:台湾 01|台湾 02)$)", android)
+            self.assertIn("(?:^(?:台湾 01|台湾 02)$)", shadowrocket)
+            self.assertIn("empty-fallback: REJECT", android)
             self.assertIn("🇹🇼台湾", shadowrocket)
             # Verify full names remain anchored in *generated* filters.
             self.assertIn("(?:^(?:台湾 01)$)", android)
