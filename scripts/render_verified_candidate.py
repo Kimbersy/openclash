@@ -26,6 +26,12 @@ REGIONS = {
     "DE": "🇩🇪德国",
 }
 AI_ELIGIBLE_GROUP_OPTIONS = ("TW", "JP", "SG", "US")
+# Optional AI-only Taiwan fallback. Slower probes than existing 180s fallback.
+# Opt-in only; cannot preserve a long-running AI connection during switchover.
+AI_STABLE_TW_GROUP = "🛡️AI 稳态🇹🇼台湾"
+AI_STABLE_TW_URL = "https://www.gstatic.com/generate_204"
+AI_STABLE_TW_INTERVAL = 600
+AI_STABLE_TW_TIMEOUT = 10
 
 
 def parse_utc(value: str) -> datetime:
@@ -102,10 +108,23 @@ def build_candidate_ini(source: str, names_by_country: dict[str, list[str]]) -> 
             continue
         label = "🧭核验" + REGIONS[cc]
         extra.append("custom_proxy_group=" + label + "`select`" + literal_filter(names_by_country[cc]))
+    # Optional, source/provider-order fallback among verified TW exits only.
+    # Requires >=2 good nodes; on recovery fallback may switch back and disrupt
+    # a live AI stream. This mode is not enabled by default.
+    tw_names = names_by_country.get("TW", [])
+    if len(tw_names) >= 2:
+        extra.append(
+            "custom_proxy_group=" + AI_STABLE_TW_GROUP + "`fallback`"
+            + literal_filter(tw_names)
+            + "`" + AI_STABLE_TW_URL
+            + "`" + str(AI_STABLE_TW_INTERVAL) + "," + str(AI_STABLE_TW_TIMEOUT)
+        )
     # New choices only, appended *after* original AI choices. Existing saved/default
     # AI selection and all existing groups remain unchanged.
     ai_refs = "".join("`[]🧭核验" + REGIONS[cc]
                       for cc in AI_ELIGIBLE_GROUP_OPTIONS if names_by_country.get(cc))
+    if len(tw_names) >= 2:
+        ai_refs += "`[]" + AI_STABLE_TW_GROUP
     lines[target_index] += ai_refs
     lines.extend(["", "; ===== PRIVATE VERIFIED-EGRESS CANDIDATE: NOT FOR PUBLIC COMMIT =====", *extra])
     return "\n".join(lines) + "\n"
