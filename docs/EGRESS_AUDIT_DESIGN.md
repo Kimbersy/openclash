@@ -1,70 +1,55 @@
-# AI 节点真实出口核验：候选方案（尚未部署）
+# AI 出口事实、服务可用性与稳态候选（尚未部署）
 
-更新日期：2026-11-11。所有新增代码只在候选分支，未改主分支、设备和现有订阅；尚无实际机场节点的出口核验结果。
+更新日期：2026-11-12。**所有变更仅在 Draft PR #2 候选分支；正式订阅、OpenClash 设备、Cloudflare Worker/KV 均未更改。**
 
-## 为什么需要单独检测
+## 最初需求与这次纠偏
 
-原 Clash-Li.ini 仅凭机场节点名称正则筛选台湾、日本、美国等地区；gstatic generate_204 只检查连通性，并不能确认真正的出口 IP。标称台湾、实际香港落地的节点仍可能进入台湾组。
+用户要解决的是 AI 节点使用不稳定、自动误切、机场名义位置与真实公网出口不一致，以及 OpenClash/Android Mihomo/iOS Shadowrocket 配置统一维护。台湾只是一个举例，**不能设计成只检查台湾，也不能按照国家推测服务全部可用或不可用**。用户的现状反馈是：一些标称香港节点通过机场分流可以使用 ChatGPT，但 NotebookLM 不可用。它是个别节点和服务的实测经验，**不是整个香港地区的通用结论**。
 
-现有架构：Clash-Li.ini 为策略与规则源；scripts/generate_android.py 与 scripts/generate_shadowrocket.py 生成 Android/Mihomo 与 Shadowrocket 配置。Android 模板的 __AIRPORT_URL__ 由现有 Cloudflare Worker 注入。公开仓库不应该持有机场订阅或凭据。
+每个节点须独立维护三种事实：
 
-## 已提交的两个独立组件
+1. **机场声称地区**：从名称尝试识别，可能缺失、含糊或错误，仅作对照。
+2. **实际出口地区**：通过该节点分别访问至少两家公网 IP/GeoIP 回显来源，只有 IP 与国家一致才标记 `egress_verified=true`、填入 `observed_country`。名称写台湾但出口香港的节点保留、标为 `mismatch`，**按真实香港出口归类，不应直接删除**；名称不含地区但出口核验成功的节点也保留。不能把 `gstatic 204` 连通性当成实际 IP 的地理证明。
+3. **服务级实际可用性**：ChatGPT、NotebookLM、Gemini 分别记录；同一节点可 ChatGPT 可用而 NotebookLM 不可用，或反之。出口地区、测速、HTTP 连通性都不能代替登录后的真实 AI 会话/页面功能验证。未实测时标记 `unknown`，**绝不凭国家给全部服务一票通过/否决**。
 
-1. scripts/audit_egress.py：由可信的私有运行器为每个机场节点提供唯一的本地 HTTP CONNECT 代理端口。本脚本经该端口访问 ipinfo.io 与 ipapi.co 的 HTTPS IP 回显服务，观察实际出口 IP 和国家代码。两个来源的 IP、国家均一致，且节点名称唯一指向该国家，才列为 match。地区不一致列 mismatch；来源互相矛盾列 inconsistent；失败或名称不明确列 unknown。脚本不下载机场订阅，也不创建各节点的本地代理端口。
-2. scripts/render_verified_candidate.py：从不超过 6 小时的私有报告提取核验匹配的节点，仅新增“🧭核验🇹🇼台湾”等候选组，追加在 AI 策略现有选项后；调用原有两个生成器形成 Mihomo 和 Shadowrocket 的私有完整候选配置。不会自动选择新组，也不会改 Disney+、普通网页、GitHub 等分流规则。
+### 新候选行为
 
-重要兼容点：原 Android 生成器会清除某些正则的开头 ^ 和结尾 $；本候选使用 (?:^(?:节点1|节点2)$) 形式包裹精确名称，防止清理后重新成为模糊名称匹配。测试必须覆盖真实两个生成器。
+- `scripts/audit_egress.py` 为每个节点输出 `claimed_country`、`observed_country`、`status=match/mismatch/unknown/inconsistent`、独立的 `egress_verified`，以及初始空对象 `service_availability={}`。双源冲突/无法完成访问：不发放实测出口资格。新字段 `observed_exit_name_filters` 包含所有核验成功的实际出口（也包括名称不符或没有国别名称的节点）。
+- `scripts/render_verified_candidate.py` **按 observed_country 生成** `🧭出口🇭🇰香港`、`🧭出口🇹🇼台湾`、`🧭出口🇯🇵日本`、`🧭出口🌐CA` 等可选策略组：并不限于某几个硬编码国家。香港出口也可以作为 ChatGPT 的**人工候选**，但这并不保证 NotebookLM、Gemini 可用。
+- 原 `🤖 AI` `select` 的已有选项/顺序不改变，只在末尾追加新出口备选；视频、YouTube、Disney+、GitHub 和其他既有规则不改变。Mihomo 与 Shadowrocket 均来自同一 `Clash-Li.ini` 和原有生成器，精确节点正则继续保留完整锚点。
+- **删除之前仅为台湾生成的 `🛡️AI 稳态🇹🇼台湾` 自动 fallback 候选**。没有单项服务实机合格节点与长连接数据之前，任何国家都不默认获批 AI 自动备援。之后可按 `ChatGPT`、`NotebookLM`、`Gemini` 各自的合格池设计可选的主备与切换冷却，绝不因为国别相同就合并服务策略。
 
-## AI 稳态候选组（2026-11-12，未安装）
+### 服务级验收设计（待真机实施，不凭模拟结果放行）
 
-- 原有 `🤖 AI` select 选项与顺序、台湾原有 `🇹🇼台湾-自动`、YouTube / Disney+ 等规则不改变。只在当前私有候选中追加可手动选择的组。
-- 只有真实出口 IP 与国家经 ipinfo、ipapi 两源一致验证，且台湾节点至少两个，才追加 `🛡️AI 稳态🇹🇼台湾`：标准 fallback，精确筛选已验证的 TW 节点；探测 `https://www.gstatic.com/generate_204`，间隔 600 秒、超时 10 秒（原台湾自动组为 180 秒、5 秒）。单节点不能假称具备自动容灾。
-- fallback 仍可能在故障和恢复时更换线路，**不保证 AI 长连接不中断**，也不提供冷却时间/防抖算法。`gstatic 204` 只能测连通性，不能证明 Gemini/ChatGPT 地区资格。用户需要主动在 AI 选择器中试用这个新选项。
-- 同一 `Clash-Li.ini` 源同时生成 Android/Mihomo、Shadowrocket 候选配置，已用两套原有转换器测试。正式订阅、Worker、设备尚未变化。
-- 参考 Mihomo 官方组字段 https://wiki.metacubex.one/en/config/proxy-groups/ ，Subconverter group INI 语法 https://github.com/tindy2013/subconverter/blob/master/README-cn.md 。
+| 维度 | 真实核验方式 | 记录 |
+|---|---|---|
+| 出口身份 | 独立节点本地 HTTP CONNECT → ipinfo、ipapi；记录公网 IP/国家是否双源相同 | `observed_country`, `observed_ips`, `egress_verified` |
+| ChatGPT | 用同一指定节点在真实客户端登录并实际发送/接收消息，观察响应、登录或地区错误 | `usable/unusable/unknown` + 终端/时间 + 错误类别 |
+| NotebookLM | 用同一节点实际打开工作区并完成一次用户允许的普通交互 | 独立的 `usable/unusable/unknown` |
+| Gemini | 同一节点完成真实页面/会话请求 | 独立的 `usable/unusable/unknown` |
+| 稳定性 | 不频繁切换的时间窗内观察会话、切换次数、恢复时长和失败次数，并在不同时间复测 | 实际切换/断流/恢复统计，不能仅凭延迟 |
 
-## 不切换现有 AI 节点的真实出口检测准备（2026-11-12，未实机）
+平台可用性受账号、地区政策、机场二次分流、DNS 等因素影响；一条 HTTPS 204 或页面可连接只证明局部连通性。没有实际业务证据时，任何服务标记均保持 `unknown`。真实 IP 也可能因机场运营调整而改变，检测结果须设有效期并复测。
 
-- 新增 `scripts/prepare_isolated_audit.py`：从**仅本地保存**的机场 `proxies:` YAML 和 JSON 精确节点名称列表生成一个**独立 Mihomo 进程**使用的最小配置，并产生现有 `audit_egress.py` 所需的逐节点 loopback HTTP 端口映射。
-- 监听仅为 `127.0.0.1:17801+`；每个入站指定一个真实代理节点，`MATCH,REJECT` 兜底，防止不受控直连。不会启用 TUN、透明代理、LAN 服务或外部控制器；不会启动或修改正在使用的 OpenClash。
-- 仅选取 1–32 个节点、拒绝保留节点名/重复名/无效端口，预查端口占用；私有配置和名称只在指定的**非公开 Git 仓库外**的目录存放（目录 0700、文件 0600）。生成的 Mihomo 配置包含私密节点凭据，严禁提交到 GitHub、发送聊天或公开日志。
-- 安全流程：在用户可信设备/路由器的独立运行环境安装 PyYAML==6.0.2，私有准备 `provider-nodes.yaml` 和 `selected-names.json`（例如 `["台湾01", "台湾02"]`），运行准备器生成 `isolated-mihomo.yaml`、`egress-inventory.json`；再用 `mihomo -t -d <private_dir> -f <private_yaml>` **检查配置**，确认后在单独进程运行 Mihomo，再执行 `audit_egress.py` 与 `render_verified_candidate.py`。
-- 用户目前只有手机，**不要求现在在手机运行任何命令**。以上程序的输出安全与业务兼容目前只完成离线 CI；没有执行真实机场节点访问，没有修改路由器。测试时优先以家里电信出口为起点，不能用 GitHub 美国托管环境等同家庭路径。
-- 官方依据：https://wiki.metacubex.one/en/config/inbound/listeners/ （listener 支持 `proxy` 指定出站节点）；配置检查仅保证可解析，不等于真实节点可用。
-## 私有使用示例（仅限已准备好逐节点本地代理端口）
+## 如何在家庭路由器安全完成真实出口检测
 
-私有 JSON 结构：
+现有 iStoreOS 旁路由 `x86_64`、内存 `MemAvailable≈1100MiB`，OpenClash `v0.47.156` + Mihomo `alpha-ge183c58` 正运行，`ruby` 与 `curl` 可用，宿主 Python 未安装；`/etc/openclash/core/clash_meta` 存在可执行。2026-11-12 14:46 真实 UCI 返回 `UCI_ACTIVE=CONFIG_2`，该私有 YAML 含58个内嵌节点；另一未选中配置含169个条目。**58个节点是否在线或支持各平台仍未实测**。
 
-    {
-      "schema_version": 1,
-      "nodes": [
-        {"name": "台湾01", "proxy_url": "http://127.0.0.1:7801"},
-        {"name": "台湾02", "proxy_url": "http://127.0.0.1:7802"}
-      ]
-    }
+- 第一步仅对这58个节点做**所有地区**的匿名分布统计，包含香港、台湾、日本、新加坡、美国、韩国、欧洲以及不可识别标签；名称只是“候选采样”，不能判定真实出口。可优先抽取香港、台湾、日本及不含国别的少量节点，不能只查台湾。
+- 确认资源与监听隔离后，在路由器上通过**额外独立进程**和临时目录运行有限并发逐节点检测；不能改动现有 OpenClash 内核进程、AI 选择、DNS、TUN 或其他家用服务。应先证明用到的独立 listeners 和端口没有影响当前网络，并设置资源限制/回收。
+- 公共代码的 `scripts/prepare_isolated_audit.py` + `scripts/audit_egress.py` 是候选实现，离线模拟 CI 已通过。路由器宿主没有 Python；已确认 Ruby/Psych 可读取私有 YAML，因此后续可仅在路由器本地生成同等隔离配置或复用可信现有运行环境。**不要求用户将机场 URL/订阅、节点密码、完整私有 YAML 或公网 IP 清单发进聊天/GitHub**。
+- `audit_egress.py` 当前只探测 IP/国家，**不执行服务可用性验证**。后续服务级检测必须另有可信终端真实回执，且服务失败不得归咎于国家或节点标签本身。
 
-运行：
+参考上游 Mihomo [listeners](https://wiki.metacubex.one/en/config/inbound/listeners/) 和 [proxy group](https://wiki.metacubex.one/en/config/proxy-groups/) 文档。标准 fallback 仍可能在故障/恢复时切换，切线会使 AI 长连接中断，不可把 600s/10s 当成会话保持保证。
 
-    python3 scripts/audit_egress.py --inventory /private/nodes.json --report /private/egress-report.json
-    python3 scripts/render_verified_candidate.py --report /private/egress-report.json --source-ini Clash-Li.ini --output-dir /private/verified-client-candidates
-    python3 -m unittest discover -s tests -p 'test_*.py' -v
+## 私有性、回归和发布条件
 
-输出目录为私有地址，含 Clash-Li.verified-candidate.ini、Clash-Meta-Android.verified-candidate.yaml、Shadowrocket.verified-candidate.conf。源代码和发布的 generated 目录保持不变。
-
-**不得将机场订阅 URL、节点密码、完整出口检测报告、私有生成配置提交到本公开仓库**。报告可能含节点名和真实出口 IP。敏感数据应由私有 runner/Worker 保管，在权限控制下交给客户端。GitHub Actions 常规公开构建无需且不应取得这些密钥。
-
-## 范围限制
-
-- 本轮没有机场节点的真实代理端口/可安全访问的私有订阅，因此没有做真实 IP 检测。
-- 当前只比较两个 IP 回显提供者的观察；未独立验证 IPv6、目标站点特定出口、服务器物理机房位置，不能代表 AI 服务地区资格。
-- 使用共享候选配置仍要求真实设备和 Cloudflare Worker 的节点名称一致，并由私有渠道分发生成物；此链路尚未验收。
-- 出口地理真实性和“AI 会话不频繁自动切换”是不同问题。后者仍需保守主备切换策略及实机验证。
-- 不能保证账号平台接受某个出口，实际使用仍必须符合服务所在地区和账号条款。
-
-## 回归与发布条件
-
-生成候选的自动测试通过后，仍需测试 iStoreOS/OpenClash、Android/Mihomo、Shadowrocket 实际解析及切换；验证台湾标签/香港落地被排除、失败和过期时不错误归组、普通网页/YouTube/Disney+ 分流不退步；记录固定提交及实机结果后才可评估合并主分支。
+- 私有节点数据、密钥和 GeoIP 详情只能保留在路由器/授权的私有系统。公开 GitHub CI 使用模拟数据，不访问真实机场或任何用户 AI 账号。
+- 已有 `Clash-Li.ini`、`list/AI.list`、`generated/` 及真实客户端订阅**不被 Draft PR 自动修改**。旧版选择和正常 YouTube、网页、Disney+ 流量必须通过回归。
+- 即使跨端生成测试全部通过，也**不能宣称**真实 IP/业务稳定性已验收；需要家庭线路上的有限真实节点出口测试与 ChatGPT/NotebookLM/Gemini 的分别验证，然后在私有渠道下发测试配置并验收 Android/OpenClash/Shadowrocket。
+- 真正需要按服务独立路由时，必须先验证规则优先级、实际 UI 组选择和必要的服务域名规则，避免破坏现有总体 `🤖 AI` 策略。只有连续稳定性证明足够，才考虑按服务开备援或冷却策略。
+- VPS 只在已有机场无法满足这些业务指标时再评估，不将新增海外服务器当默认前提。
 
 ## 唯一下一步
 
-候选分支代码和自动测试都可读且通过后，确认当前 Cloudflare Worker/私有机场订阅可怎样安全交给独立测试进程，创建小批真实节点的本地独立代理端口并逐个检测；未获得真实报告前，不发布自动白名单，不改设备。
+继续从已确定的 UCI 活动 CONFIG_2 私有文件出发，**一次统计全部58个节点的标称地区分布与未知类（不暴露名字）**，据此从多地区抽取有限样本，准备真实双源出口 IP 核验。后续服务级检测单列，不凭地区猜可用性。当前保持 PR Draft/unmerged，现网不变。
