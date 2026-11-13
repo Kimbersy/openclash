@@ -85,9 +85,9 @@ begin
   ps=c.fetch('proxies')
   raise unless ps.is_a?(Array) && ps.size==58 && ps.all?{|n|n.is_a?(Hash)&&n['name'].is_a?(String)&&n['type'].is_a?(String)}
   raise unless ps.map{|n|n['name']}.uniq.size==ps.size
-  re=r=='HK' ? /香港|🇭🇰|\b(?:HK|HKG|Hong\s*Kong)\b/i : /台湾|台灣|臺灣|🇹🇼|\b(?:TW|TWN|Taiwan)\b/i
-  sample=ps.find{|n|re.match?(n['name'])&&!n['dialer-proxy']&&!%w[direct reject reject-drop pass compatible].include?(n['type'].downcase)}
-  raise unless sample
+  re=r=='HK' ? /香港|🇭🇰|\b(?:HK|HKG|Hong\s*Kong)\b/i : /台湾|臺灣|🇹🇼|\b(?:TW|TWN|Taiwan)\b/i
+  sample=ps.find{|n|re.match?(n['name'])}
+  raise unless sample && !sample['dialer-proxy'] && !%w[direct reject reject-drop pass compatible].include?(sample['type'].downcase)
   cfg={'allow-lan'=>false,'mode'=>'rule','log-level'=>'silent',
      'port'=>0,'socks-port'=>0,'mixed-port'=>0,'redir-port'=>0,'tproxy-port'=>0,
      'external-controller'=>'','tun'=>{'enable'=>false},
