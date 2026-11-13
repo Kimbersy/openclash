@@ -279,7 +279,9 @@ def plan_dry_run(
         current_obs = observations.get(current)
         geo = current_obs.get("egress") if isinstance(current_obs, dict) else None
         if not isinstance(geo, dict) or geo.get("country") != region or geo.get("verified") is not True or \
-           geo.get("fingerprint") != current_manifest["node_fingerprints"][current]:
+           geo.get("fingerprint") != current_manifest["node_fingerprints"][current] or \
+           not fresh(geo.get("observed_at"), now, 24 * 3600) or \
+           type(geo.get("independent_sources")) is not int or geo["independent_sources"] < 2:
             return result("HOLD_CURRENT_REGION_UNVERIFIED", gate=gate["decision"], queue=private_queue)
     backup = next((n["name"] for n in pool if n["name"] != current), None)
     if backup is None:
