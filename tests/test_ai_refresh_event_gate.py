@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from ai_refresh_event_gate import assess
+from ai_refresh_event_gate import assess, catalog_digest
 
 NOW = datetime(2026,11,13,12,50,tzinfo=timezone.utc)
 MANIFEST = {
@@ -24,7 +24,7 @@ RUNTIME = {"source":"authenticated_live_mihomo_snapshot",
            "core_running":True,"authenticated":True,
            "all_providers_loaded":True,"run_id":"openclash-sub-001",
            "observed_at":(NOW - timedelta(minutes=1)).isoformat(),
-           "live_node_manifest_sha256":"a"*64}
+           "live_node_identity_digest":catalog_digest(MANIFEST)}
 
 
 def gate(m=MANIFEST,u=UPDATE,v=RUNTIME,coverage=True):
@@ -83,7 +83,16 @@ class TestAiRefreshGate(unittest.TestCase):
 
     def test_identity_mismatch_blocks(self):
         self.assertEqual(gate(u=UPDATE | {"snapshot_sha256":"c"*64})["reason"],"UPDATE_SNAPSHOT_MISMATCH")
-        self.assertEqual(gate(v=RUNTIME | {"live_node_manifest_sha256":"c"*64})["reason"],"LIVE_SNAPSHOT_MISMATCH")
+        self.assertEqual(gate(v=RUNTIME | {"live_node_identity_digest":"c"*64})["reason"],"LIVE_NODE_IDENTITY_MISMATCH")
+
+    def test_running_yaml_metadata_can_differ_but_full_connection_identity_must_match(self):
+        changed_source = MANIFEST | {"subscription_snapshot": {"sha256":"c"*64,"byte_count":127}}
+        updated=UPDATE | {"snapshot_sha256":"c"*64}
+        # OpenClash may regenerate runtime YAML metadata, without changing
+        # the proxies. Accept only the canonical node map identity, not disk bytes.
+        self.assertEqual(gate(m=changed_source,u=updated)["status"],"VERIFIED_SNAPSHOT_READY")
+        changed_node=MANIFEST | {"node_fingerprints":{"PRIVATE-NODE":"f"*64}}
+        self.assertEqual(gate(m=changed_node)["reason"],"LIVE_NODE_IDENTITY_MISMATCH")
 
     def test_outputs_do_not_contain_sensitive_identifiers(self):
         for result in [gate(),gate(u=UPDATE | {"snapshot_sha256":"SECRET PRIVATE URL"})]:
