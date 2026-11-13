@@ -130,6 +130,8 @@ DOMAIN,notebooklm-pa.googleapis.com
 DOMAIN,notebooklm.googleapis.com
 
 DOMAIN-SUFFIX,notebook.google.com
+# Rebranded public landing page; exact host only, not all google sites.
+DOMAIN,notebook.google
 DOMAIN-SUFFIX,notebooklm.google
 DOMAIN-SUFFIX,notebooklm.google.com
 
