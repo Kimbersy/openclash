@@ -47,7 +47,7 @@ fi
 run_one() (
   idx="$1"
   tag="NODE_$(printf '%02d' "$idx")"
-  D="/tmp/openclash-ai-batch-$idx-$(date +%s)-$"
+  D="/tmp/openclash-ai-batch-$idx-$(date +%s)-$(ruby -e 'print Process.pid')"
   if ! mkdir -m 700 "$D" 2>/dev/null; then echo "$tag PREP=FAIL"; exit 1; fi
   pid=''
   watch=''
