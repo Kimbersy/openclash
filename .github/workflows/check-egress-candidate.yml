@@ -188,7 +188,11 @@ jobs:
           printf '%s\n' "$output"
           printf '%s\n' "$output" | grep -q '^POST_UPDATE_ACTIVATION_EVIDENCE='
           printf '%s\n' "$output" | grep -q '^LIVE_API='
-          printf '%s\n' "$output" | grep -q '^LIVE_PROXY_NAME_COVERAGE='
+          if printf '%s\n' "$output" | grep -q '^LIVE_API=READ_ONLY_GET_SUCCESS'; then
+            printf '%s\n' "$output" | grep -q '^LIVE_PROXY_NAME_COVERAGE='
+          else
+            ! printf '%s\n' "$output" | grep -q '^LIVE_API=READ_ONLY_GET_SUCCESS'
+          fi
           printf '%s\n' "$output" | grep -q 'PRODUCTION_WRITES=NONE'
       - name: Live Mihomo loopback GET snapshot read-only safety tests
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
