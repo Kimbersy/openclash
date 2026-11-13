@@ -43,6 +43,8 @@ on:
       - scripts/ai_proc_clock_readonly.rb
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
+      - scripts/ai_openclash_updater_contract.py
+      - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
@@ -103,6 +105,8 @@ on:
       - scripts/ai_proc_clock_readonly.rb
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
+      - scripts/ai_openclash_updater_contract.py
+      - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
@@ -193,6 +197,10 @@ jobs:
           python -m unittest discover -s tests -p test_ai_service_stability_dry_run.py -v
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Exact upstream updater version and protected postcommit contract safety
+        run: |
+          python -m py_compile scripts/ai_openclash_updater_contract.py
+          python -m unittest discover -s tests -p test_ai_openclash_updater_contract.py -v
       - name: Kernel auxv clock and natural update chronology never fake runtime proof
         run: |
           ruby -c scripts/ai_proc_clock_readonly.rb
