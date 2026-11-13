@@ -107,7 +107,7 @@ RUBY_CLEAN
   trap cleanup EXIT
   trap 'exit 130' HUP INT TERM
   if ! port_free; then echo "$tag PREP=BLOCKED PORT_17881_IN_USE"; exit 1; fi
-  if ! ruby -rpsych - "$idx" "$D" <<'RUBY_PREP'
+  ruby -rpsych - "$idx" "$D" <<'RUBY_PREP'
 # encoding: UTF-8
 begin
   idx=Integer(ARGV.fetch(0));d=ARGV.fetch(1)
@@ -123,7 +123,11 @@ begin
   raise unless ps.is_a?(Array) && ps.size==58 && ps.all?{|n|n.is_a?(Hash)&&n['name'].is_a?(String)&&n['type'].is_a?(String)}
   raise unless ps.map{|n|n['name']}.uniq.size==ps.size
   sample=ps[idx-1]
-  raise unless sample && !sample['dialer-proxy'] && !%w[direct reject reject-drop pass compatible].include?(sample['type'].downcase)
+  raise unless sample
+  if sample['dialer-proxy'] || %w[direct reject reject-drop pass compatible].include?(sample['type'].downcase)
+    puts "NODE_#{'%02d'%idx} PREP=SKIP_DEPENDENT_OR_BUILTIN"
+    exit 3
+  end
   cfg={'allow-lan'=>false,'mode'=>'rule','log-level'=>'silent',
      'port'=>0,'socks-port'=>0,'mixed-port'=>0,'redir-port'=>0,'tproxy-port'=>0,
      'external-controller'=>'','tun'=>{'enable'=>false},
@@ -138,7 +142,9 @@ rescue StandardError
   exit 1
 end
 RUBY_PREP
-  then exit 1; fi
+  prep_rc=$?
+  if [ "$prep_rc" -eq 3 ]; then echo "$tag QUALIFICATION=SKIPPED_UNSUPPORTED";exit 0;fi
+  if [ "$prep_rc" -ne 0 ]; then exit 1;fi
   if ! "$CORE" -t -d "$D" -f "$D/isolated.yaml" >"$D/core-config-test.log" 2>&1; then
     echo "$tag CORE_CONFIG=FAIL";exit 1
   fi
