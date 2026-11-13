@@ -149,7 +149,7 @@ RUBY_PREP
     trap "" HUP
     pid=$1; conf=$2; stop=$3
     n=0
-    while [ "$n" -lt 48 ]; do [ -f "$stop" ] && exit 0; sleep 1; n=$((n+1)); done
+    while [ "$n" -lt 80 ]; do [ -f "$stop" ] && exit 0; sleep 1; n=$((n+1)); done
     ours() {
       ruby -e '\''begin;a=File.binread("/proc/#{ARGV[0]}/cmdline").split("\0");exit(a.include?(ARGV[1]) ? 0 : 1);rescue StandardError;exit 1;end'\'' "$pid" "$conf"
     }
@@ -160,6 +160,23 @@ RUBY_PREP
   watch=$!
   sleep 3
   if ! owned; then echo "$tag PILOT=FAIL CORE_NOT_RUNNING";exit 1;fi
+
+  # Two independent IPv4 country observations. Do not publish actual egress IPs.
+  ipjson=$(curl -4 --proxy http://127.0.0.1:17881 -sS --connect-timeout 3 --max-time 7 https://ipinfo.io/json 2>"$D/ipinfo.err")
+  rc1=$?
+  cftrace=$(curl -4 --proxy http://127.0.0.1:17881 -sS --connect-timeout 3 --max-time 7 https://www.cloudflare.com/cdn-cgi/trace 2>"$D/cloudflare.err")
+  rc2=$?
+  ipdata=$(printf '%s' "$ipjson" | ruby -rpsych -e 'begin;h=Psych.safe_load(STDIN.read,aliases:false);c=h["country"].to_s;i=h["ip"].to_s;print "#{c}|#{i}" if c.match?(/\A[A-Z]{2}\z/) && i.match?(/\A\d{1,3}(?:\.\d{1,3}){3}\z/);rescue StandardError;end')
+  ipcc=$(printf '%s' "$ipdata" | cut -d'|' -f1)
+  ipv4=$(printf '%s' "$ipdata" | cut -d'|' -f2)
+  cfcc=$(printf '%s\n' "$cftrace" | sed -n 's/^loc=//p' | head -n 1)
+  cfip=$(printf '%s\n' "$cftrace" | sed -n 's/^ip=//p' | head -n 1)
+  if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] && [ -n "$ipcc" ] && [ "$ipcc" = "$cfcc" ] && [ "$ipv4" = "$cfip" ]; then
+    echo "$tag EXIT_COUNTRY=$ipcc GEO_SOURCES=AGREE IPV4_MATCH=YES"
+  else
+    echo "$tag EXIT_COUNTRY=UNVERIFIED GEO_SOURCES=INCOMPLETE_OR_CONFLICT"
+  fi
+
   for svc in CHATGPT GEMINI NOTEBOOKLM; do
     case "$svc" in
       CHATGPT) url=https://chatgpt.com/ ;;
