@@ -136,8 +136,9 @@ class UpdaterPostcommitContractTests(unittest.TestCase):
                 self.assertFalse(sample(**patch)["postcommit_candidate"])
 
     def test_no_change_is_not_changed_and_needs_actual_download_validation(self):
-        self.assertTrue(sample(commit_outcome="NO_CHANGE",
-                               source_config_was_changed=False)["postcommit_candidate"])
+        nochange = sample(commit_outcome="NO_CHANGE", source_config_was_changed=False)
+        self.assertFalse(nochange["postcommit_candidate"])
+        self.assertEqual(nochange["reason"], "HOLD_NO_NEW_COMMIT_SEPARATE_NO_CHANGE_PROOF")
         self.assertFalse(sample(commit_outcome="NO_CHANGE",
                                 source_config_was_changed=True)["postcommit_candidate"])
         self.assertFalse(sample(commit_outcome="NO_CHANGE",
