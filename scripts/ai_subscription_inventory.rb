@@ -3,8 +3,6 @@
 # Safe, no-write inventory of configured nodes and runtime provider entries.
 # Never prints subscription URLs, proxy names, addresses, credentials or controller secret.
 require 'psych'
-require 'json'
-require 'open3'
 module AiSubscriptionInventory
   module_function
 
@@ -12,7 +10,7 @@ module AiSubscriptionInventory
     raise 'not_mapping' unless cfg.is_a?(Hash)
     direct = cfg['proxies'].is_a?(Array) ? cfg['proxies'] : []
     declared = cfg['proxy-providers'].is_a?(Hash) ? cfg['proxy-providers'] : {}
-    names = direct.filter_map { |p| p['name'] if p.is_a?(Hash) && p['name'].is_a?(String) }
+    names = direct.map { |p| p['name'] if p.is_a?(Hash) && p['name'].is_a?(String) }.compact
     # Official Mihomo GET /providers/proxies wraps entries under 'providers'.
     # Reject unknown envelope shapes rather than claiming a complete inventory.
     provider_map = if declared.empty?
@@ -31,7 +29,7 @@ module AiSubscriptionInventory
           provider_status = 'PARTIAL'
           next
         end
-        provider_nodes = entry['proxies'].filter_map { |p| p['name'] if p.is_a?(Hash) && p['name'].is_a?(String) }
+        provider_nodes = entry['proxies'].map { |p| p['name'] if p.is_a?(Hash) && p['name'].is_a?(String) }.compact
         names.concat(provider_nodes)
         providers_loaded += provider_nodes.length
       end
@@ -55,6 +53,15 @@ module AiSubscriptionInventory
       subscribe_flag_unknown: sub_ids.length - enabled - disabled,
       source_coverage: 'UNVERIFIED_NEEDS_MERGE_PROVENANCE'
     }
+  end
+
+  # JSON is valid YAML: Psych is already present in the router's minimal Ruby.
+  # Reject unexpected/malformed payloads rather than accepting an incomplete pool.
+  def parse_provider_response(payload)
+    data = Psych.safe_load(payload, aliases: false)
+    data.is_a?(Hash) && data['providers'].is_a?(Hash) ? data : nil
+  rescue StandardError
+    nil
   end
 
   def process
@@ -83,7 +90,7 @@ module AiSubscriptionInventory
     return puts('INVENTORY=BLOCKED REASON=NO_RUNTIME_CONFIG') unless runtime
     pid, _argv, config_path, flag = runtime
     cfg = Psych.safe_load(File.binread(config_path), aliases: false)
-    output, = Open3.capture2('uci', '-q', 'show', 'openclash', err: File::NULL)
+    output = `uci -q show openclash 2>/dev/null`
     declared = cfg['proxy-providers'].is_a?(Hash) ? cfg['proxy-providers'] : {}
     loaded = declared.empty? ? {} : nil
     if !declared.empty?
@@ -94,11 +101,11 @@ module AiSubscriptionInventory
         port = match[1].to_i
         inodes = %w[/proc/net/tcp /proc/net/tcp6].flat_map do |p|
           next [] unless File.file?(p)
-          File.readlines(p).drop(1).filter_map do |line|
+          File.readlines(p).drop(1).map do |line|
             cols = line.split
             cols[9] if cols.size > 9 && cols[3] == '0A' && cols[1].split(':').last.to_i(16) == port
           end
-        end
+        end.compact
         owned = Dir.glob("/proc/#{pid}/fd/*").any? do |fd|
           begin
             inodes.include?(File.readlink(fd)[/\Asocket:\[(\d+)\]\z/, 1])
@@ -116,7 +123,7 @@ module AiSubscriptionInventory
               io.close_write
               payload = io.read(2_000_001)
             end
-            loaded = JSON.parse(payload) if payload.bytesize.between?(1, 2_000_000)
+            loaded = parse_provider_response(payload) if payload.bytesize.between?(1, 2_000_000)
           rescue StandardError
             loaded = nil
           end
