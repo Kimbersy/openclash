@@ -39,6 +39,22 @@ class AiSubscriptionInventoryTest < Minitest::Test
     r=AiSubscriptionInventory.classify({'proxy-providers'=>{'s1'=>{}}},{'providers'=>{}})
     assert_equal 'PARTIAL',r[:provider_status]
   end
+  def test_router_minimal_ruby_json_is_parsed_with_psych
+    payload = '{"providers":{"s1":{"proxies":[{"name":"A"},{"name":"B"}]}}}'
+    data = AiSubscriptionInventory.parse_provider_response(payload)
+    assert_equal 2, data['providers']['s1']['proxies'].size
+    cfg = {'proxy-providers'=>{'s1'=>{}}}
+    result = AiSubscriptionInventory.classify(cfg, data)
+    assert_equal 2, result[:provider_nodes_loaded]
+    assert_equal 'READABLE', result[:provider_status]
+  end
+  def test_malformed_json_is_rejected_and_no_extra_ruby_dependencies
+    assert_nil AiSubscriptionInventory.parse_provider_response('{"providers":')
+    assert_nil AiSubscriptionInventory.parse_provider_response('{"wrong":{}}')
+    script = File.binread(File.expand_path('../scripts/ai_subscription_inventory.rb', __dir__))
+    refute_match(/require ['"](?:json|open3)['"]/, script)
+    refute_match(/\.filter_map\b/, script)
+  end
   def test_unavailable_provider_is_unverified
     r=AiSubscriptionInventory.classify({'proxy-providers'=>{'s1'=>{}}})
     assert_equal 'UNVERIFIED',r[:provider_status]
