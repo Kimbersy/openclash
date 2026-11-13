@@ -45,6 +45,8 @@ on:
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
       - scripts/ai_installed_updater_preflight_readonly.sh
+      - scripts/ai_updater_sha1_core_readonly.sh
+      - tests/test_ai_updater_sha1_core_readonly.rb
       - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
@@ -108,6 +110,8 @@ on:
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
       - scripts/ai_installed_updater_preflight_readonly.sh
+      - scripts/ai_updater_sha1_core_readonly.sh
+      - tests/test_ai_updater_sha1_core_readonly.rb
       - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
@@ -199,6 +203,22 @@ jobs:
           python -m unittest discover -s tests -p test_ai_service_stability_dry_run.py -v
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Minimal iStoreOS Ruby-core SHA1 16KB Git blob cross-check against standard Digest
+        run: |
+          sh -n scripts/ai_updater_sha1_core_readonly.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          s = pathlib.Path('scripts/ai_updater_sha1_core_readonly.sh').read_text()
+          match = re.search(r"ruby <<'RUBY'\n(.*?)\nRUBY(?=\n|$)", s, re.S)
+          assert match
+          subprocess.run(['ruby','-c'],input=match.group(1),text=True,check=True)
+          PY
+          ruby -I scripts tests/test_ai_updater_sha1_core_readonly.rb
+          output="$(sh scripts/ai_updater_sha1_core_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^UPDATER_FINGERPRINT=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^INSTALLED_UPDATER='
+          printf '%s\n' "$output" | grep -q '^UPDATER_FINGERPRINT=FINISHED PRODUCTION_WRITES=NONE'
       - name: Short iStoreOS installed updater fingerprint no-network preflight smoke
         run: |
           sh -n scripts/ai_installed_updater_preflight_readonly.sh
