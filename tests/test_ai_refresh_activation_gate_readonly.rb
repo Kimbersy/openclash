@@ -46,6 +46,14 @@ class TestAiRefreshActivationGate < Minitest::Test
                     "require 'time'"
   end
 
+  def test_missing_getconf_or_proc_is_safe_hold_not_an_exception
+    assert_nil M.process_start(-999999)
+    IO.stub(:popen, ->(*_args, **_kwargs) { raise Errno::ENOENT }) do
+      assert_nil M.process_start(Process.pid)
+    end
+    assert_equal 'CORE_START_UNVERIFIED', decision(core_start_time:nil)
+  end
+
   def test_upstream_actual_alias_guillemets
     log = line("Config File〖#{ALIAS_NAME}〗Update Successful!")
     assert_equal 'COLD_START_AFTER_UPDATE_CANDIDATE', decision(log: log)
