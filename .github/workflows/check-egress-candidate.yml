@@ -17,6 +17,7 @@ on:
       - scripts/ai_subscription_inventory.rb
       - scripts/ai_regional_pools.rb
       - scripts/ai_source_link_readonly.sh
+      - scripts/ai_service_reachability_pilot.sh
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -41,6 +42,7 @@ on:
       - scripts/ai_subscription_inventory.rb
       - scripts/ai_regional_pools.rb
       - scripts/ai_source_link_readonly.sh
+      - scripts/ai_service_reachability_pilot.sh
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -76,6 +78,18 @@ jobs:
           sh -n scripts/ai_source_link_readonly.sh
           sed '1d;$d' scripts/ai_source_link_readonly.sh > /tmp/ai_source_link_readonly.rb
           ruby -c /tmp/ai_source_link_readonly.rb
+      - name: Isolated AI site reachability pilot shell and embedded Ruby syntax
+        run: |
+          sh -n scripts/ai_service_reachability_pilot.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          source = pathlib.Path('scripts/ai_service_reachability_pilot.sh').read_text()
+          for tag in ('RUBY_PREP','RUBY_CLEAN'):
+              match = re.search(r"<<'" + tag + r"'\n(.*?)\n" + tag + r"(?=\n|$)", source, re.S)
+              assert match, tag
+              subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
+          print('PILOT_SYNTAX=PASS')
+          PY
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
       - name: Unit and existing generator integration tests
