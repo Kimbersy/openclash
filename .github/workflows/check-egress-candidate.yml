@@ -29,6 +29,7 @@ on:
       - tests/test_prepare_local_probe_core.py
       - tests/test_ai_subscription_inventory.rb
       - tests/test_ai_regional_pools.rb
+      - tests/test_notebooklm_redirect_gate.py
       - .github/workflows/check-egress-candidate.yml
   pull_request:
     paths:
@@ -104,6 +105,16 @@ jobs:
               assert match, tag
               subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
           print('BATCH_SYNTAX=PASS')
+          PY
+      - name: NotebookLM redirect/access gate regression
+        run: |
+          python -m unittest discover -s tests -p test_notebooklm_redirect_gate.py -v
+          python - <<'PY'
+          import pathlib,re,subprocess
+          s=pathlib.Path('scripts/ai_network_batch_once.sh').read_text()
+          m=re.search(r"<<'RUBY_NOTEBOOK'\n(.*?)\nRUBY_NOTEBOOK(?=\n|$)",s,re.S)
+          assert m,'missing NotebookLM classifier'
+          subprocess.run(['ruby','-c'],input=m.group(1),text=True,check=True)
           PY
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
