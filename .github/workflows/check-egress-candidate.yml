@@ -19,6 +19,7 @@ on:
       - scripts/render_ai_only_candidate.py
       - tests/test_render_ai_only_candidate.py
       - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
+      - docs/AI_REFRESH_EVENT_GATE_20261113.md
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
@@ -68,6 +69,7 @@ on:
       - scripts/render_ai_only_candidate.py
       - tests/test_render_ai_only_candidate.py
       - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
+      - docs/AI_REFRESH_EVENT_GATE_20261113.md
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
