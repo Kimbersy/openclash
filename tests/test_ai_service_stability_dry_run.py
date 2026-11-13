@@ -270,6 +270,38 @@ class StableServiceDryRunTests(unittest.TestCase):
         self.assertEqual(plan_dry_run(**args)["public"]["decision"],
                          "HOLD_CURRENT_REGION_UNVERIFIED")
 
+    def test_stability_success_rate_outranks_raw_low_latency(self):
+        args = scenario()
+        third = "synthetic_02"
+        fp = args["current_manifest"]["node_fingerprints"][third]
+        args["previous_state"][third] = {
+            "fingerprint": fp,
+            "services": {svc: evidence(fp, svc) for svc in WORKFLOW_TASKS}
+        }
+        args["observations"][third] = record(fp, rate=0.96, rtt=10)
+        result = plan_dry_run(**args)
+        self.assertEqual(result["public"]["qualified_candidates"], 3)
+        self.assertEqual(result["private_target"], "synthetic_01")
+
+    def test_stale_or_single_source_current_region_cannot_switch(self):
+        args = scenario()
+        args["observations"]["synthetic_00"]["egress"]["observed_at"] = ts(-1600)
+        self.assertEqual(plan_dry_run(**args)["public"]["decision"],
+                         "HOLD_CURRENT_REGION_UNVERIFIED")
+        args = scenario()
+        args["observations"]["synthetic_00"]["egress"]["independent_sources"] = 1
+        self.assertEqual(plan_dry_run(**args)["public"]["decision"],
+                         "HOLD_CURRENT_REGION_UNVERIFIED")
+
+    def test_all_three_business_workflows_cannot_be_inferred_from_http_200(self):
+        args = scenario()
+        args["service"] = "shared_all_services"
+        for row in args["previous_state"].values():
+            row["services"]["notebooklm"]["method"] = "homepage_http_200"
+        result = plan_dry_run(**args)
+        self.assertEqual(result["public"]["qualified_candidates"], 0)
+        self.assertIsNone(result["private_target"])
+
     def test_active_pools_without_business_verified_backup_never_switch(self):
         args = scenario()
         args["previous_state"]["synthetic_01"]["services"]["chatgpt"]["expires_at"] = ts(-10)
