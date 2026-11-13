@@ -19,11 +19,11 @@ module AiRefreshActivationGate
       next unless match
       message = match[2]
       kind = case message
-             when /\AConfig File【#{escaped}】Update Successful!\z/
+             when /\AConfig File(?:【#{escaped}】|〖#{escaped}〗)Update Successful!\z/
                'UPDATED'
-             when /\AConfig File【#{escaped}】No Change, Do Nothing!\z/
+             when /\AConfig File(?:【#{escaped}】|〖#{escaped}〗)No Change, Do Nothing!\z/
                'NO_CHANGE'
-             when /\A(?:Config File【#{escaped}】Subscribed Failed.*|【#{escaped}】Update Error.*)\z/
+             when /\A(?:Config File(?:【#{escaped}】|〖#{escaped}〗)Subscribed Failed.*|(?:【#{escaped}】|〖#{escaped}〗)Update Error.*)\z/
                'FAILED'
              end
       next unless kind
