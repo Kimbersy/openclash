@@ -77,6 +77,18 @@ class NotebookLmGateTest(unittest.TestCase):
                                input=CODE, capture_output=True, text=True, check=True)
             self.assertEqual(r.stdout.strip(), "PARSER_FAILED 0")
 
+    def test_ai_rule_set_has_precise_notebook_and_login_hosts(self):
+        lines = (ROOT / "list/AI.list").read_text().splitlines()
+        required = {
+            "DOMAIN,notebook.google",
+            "DOMAIN-SUFFIX,notebook.google.com",
+            "DOMAIN-SUFFIX,notebooklm.google",
+            "DOMAIN-SUFFIX,notebooklm.google.com",
+            "DOMAIN,accounts.google.com",
+        }
+        self.assertTrue(required.issubset(set(lines)))
+        self.assertNotIn("DOMAIN-SUFFIX,google.com", lines)
+
     def test_exact_proxy_and_redirect_limits(self):
         self.assertIn("--proto-redir '=https'", SOURCE)
         self.assertIn("--max-redirs 5", SOURCE)
