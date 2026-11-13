@@ -5,9 +5,6 @@
 set -u
 umask 077
 CORE=/etc/openclash/core/clash_meta
-if [ ! -x "$CORE" ] || ! command -v ruby >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
-  echo 'PILOT=BLOCKED REASON=TOOLS'; exit 1
-fi
 START=${START:-1}
 COUNT=${COUNT:-3}
 case "$START:$COUNT" in
@@ -43,6 +40,9 @@ if [ "${TEST_CLASSIFIER:-0}" = 1 ]; then
   [ "$(classify_http 0 429)" = HTTP_RATE_LIMIT ] &&
   { echo 'CLASSIFIER_TEST=PASS'; exit 0; }
   echo 'CLASSIFIER_TEST=FAIL'; exit 1
+fi
+if [ ! -x "$CORE" ] || ! command -v ruby >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
+  echo 'BATCH=BLOCKED REASON=TOOLS'; exit 1
 fi
 run_one() (
   idx="$1"
