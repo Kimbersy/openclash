@@ -28,6 +28,8 @@ on:
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
       - scripts/ai_refresh_schedule_readonly.rb
+      - scripts/ai_refresh_log_evidence.rb
+      - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
@@ -73,6 +75,8 @@ on:
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
       - scripts/ai_refresh_schedule_readonly.rb
+      - scripts/ai_refresh_log_evidence.rb
+      - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
@@ -161,6 +165,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
       - name: Read-only update success + post-update core activation evidence safety gate
         run: ruby -c scripts/ai_refresh_activation_gate_readonly.rb && ruby -I scripts tests/test_ai_refresh_activation_gate_readonly.rb
+      - name: Read-only OpenClash updater log evidence classifier
+        run: ruby -c scripts/ai_refresh_log_evidence.rb && ruby -I scripts tests/test_ai_refresh_log_evidence.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
         run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
       - name: AI-only candidate preserves non-AI rules across Android and Shadowrocket
