@@ -13,11 +13,20 @@ module AiSubscriptionInventory
     direct = cfg['proxies'].is_a?(Array) ? cfg['proxies'] : []
     declared = cfg['proxy-providers'].is_a?(Hash) ? cfg['proxy-providers'] : {}
     names = direct.filter_map { |p| p['name'] if p.is_a?(Hash) && p['name'].is_a?(String) }
+    # Official Mihomo GET /providers/proxies wraps entries under 'providers'.
+    # Reject unknown envelope shapes rather than claiming a complete inventory.
+    provider_map = if declared.empty?
+      {}
+    elsif loaded_providers.is_a?(Hash) && loaded_providers['providers'].is_a?(Hash)
+      loaded_providers['providers']
+    else
+      nil
+    end
     providers_loaded = 0
-    provider_status = loaded_providers.nil? ? 'UNVERIFIED' : 'READABLE'
-    if loaded_providers.is_a?(Hash)
+    provider_status = provider_map.nil? ? 'UNVERIFIED' : 'READABLE'
+    if provider_map
       declared.keys.each do |key|
-        entry = loaded_providers[key]
+        entry = provider_map[key]
         unless entry.is_a?(Hash) && entry['proxies'].is_a?(Array)
           provider_status = 'PARTIAL'
           next
