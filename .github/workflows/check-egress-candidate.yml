@@ -18,6 +18,7 @@ on:
       - scripts/ai_regional_pools.rb
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
+      - scripts/ai_network_batch_once.sh
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -43,6 +44,7 @@ on:
       - scripts/ai_regional_pools.rb
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
+      - scripts/ai_network_batch_once.sh
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -89,6 +91,19 @@ jobs:
               assert match, tag
               subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
           print('PILOT_SYNTAX=PASS')
+          PY
+      - name: AI all-pool bounded batch and incomplete-HTTP classifier tests
+        run: |
+          sh -n scripts/ai_network_batch_once.sh
+          TEST_CLASSIFIER=1 sh scripts/ai_network_batch_once.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          source = pathlib.Path('scripts/ai_network_batch_once.sh').read_text()
+          for tag in ('RUBY_PREP','RUBY_CLEAN'):
+              match = re.search(r"<<'" + tag + r"'\n(.*?)\n" + tag + r"(?=\n|$)", source, re.S)
+              assert match, tag
+              subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
+          print('BATCH_SYNTAX=PASS')
           PY
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
