@@ -19,6 +19,7 @@ from ai_dynamic_refresh_planner import SERVICES, updated_state
 from ai_refresh_transition_gate import decide_refresh
 from reconcile_subscription import validate_manifest
 
+SHARED_SERVICE = "shared_all_services"  # Existing AI parent shares a single node.
 WORKFLOW_TASKS = {
     "chatgpt": ("signed_in", "prompt_answered", "stream_completed"),
     "gemini": ("signed_in", "prompt_answered"),
@@ -86,8 +87,13 @@ def qualified_pool(
             continue
         if entry.get("fingerprint") != fingerprint or obs.get("fingerprint") != fingerprint:
             continue
-        svc = entry.get("services", {}).get(service) if isinstance(entry.get("services"), dict) else None
-        if not business_verified(svc, service=service, fingerprint=fingerprint, now=now):
+        service_proofs = entry.get("services")
+        if not isinstance(service_proofs, dict):
+            continue
+        required = SERVICES if service == SHARED_SERVICE else (service,)
+        if not all(business_verified(service_proofs.get(svc), service=svc,
+                                     fingerprint=fingerprint, now=now)
+                   for svc in required):
             continue
         geo = obs.get("egress")
         if not isinstance(geo, dict) or geo.get("fingerprint") != fingerprint or geo.get("verified") is not True:
@@ -175,9 +181,16 @@ def plan_dry_run(
     if now.tzinfo is None:
         raise ValueError("aware UTC time required")
     now = now.astimezone(timezone.utc)
-    if service not in SERVICES or (region != "GLOBAL" and
+    if service not in (*SERVICES, SHARED_SERVICE) or not isinstance(region, str) or (
+        region != "GLOBAL" and
         (len(region) != 2 or not region.isascii() or not region.isupper())):
         raise ValueError("invalid service or region")
+    for key, value in {"ai_parent_selected_stable": ai_parent_selected_stable,
+                       "state_history_ready": state_history_ready,
+                       "current_healthy": current_healthy,
+                       "global_incident": global_incident}.items():
+        if type(value) is not bool:
+            raise ValueError(f"invalid fail-closed signal: {key}")
     validate_manifest(current_manifest)
     if previous_manifest is not None:
         validate_manifest(previous_manifest)
@@ -211,6 +224,14 @@ def plan_dry_run(
         return result("HOLD_UPDATE_EVIDENCE", gate=gate["decision"])
     if expected - live_names:
         return result("HOLD_MISSING_LIVE_NAMES", gate=gate["decision"])
+    if previous_manifest is not None:
+        changed_identities = (previous_manifest["node_fingerprints"] !=
+                              current_manifest["node_fingerprints"])
+        if changed_identities and (
+            refresh_signals.get("update_event") != "UPDATED" or
+            refresh_signals.get("source_changed") is not True
+        ):
+            return result("HOLD_MANIFEST_EVENT_INCONSISTENT", gate=gate["decision"])
 
     # Reuse existing fingerprint-based state carry-forward. Never call this
     # with guessed success/reload flags, regardless of matching node names.
@@ -255,7 +276,8 @@ def plan_dry_run(
     # In country-locked mode, an unqualified current node still must actually
     # be in that region before any same-country failover is planned.
     if region != "GLOBAL":
-        geo = observations.get(current, {}).get("egress", {})
+        current_obs = observations.get(current)
+        geo = current_obs.get("egress") if isinstance(current_obs, dict) else None
         if not isinstance(geo, dict) or geo.get("country") != region or geo.get("verified") is not True or \
            geo.get("fingerprint") != current_manifest["node_fingerprints"][current]:
             return result("HOLD_CURRENT_REGION_UNVERIFIED", gate=gate["decision"], queue=private_queue)
