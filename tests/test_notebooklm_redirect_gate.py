@@ -47,7 +47,7 @@ class NotebookLmGateTest(unittest.TestCase):
         self.assertNotIn("private", out)
 
     def test_app_entry_still_not_business_verified(self):
-        out = classify(0, "https://notebook.google.com/notebook/e7e2e")
+        out = classify(0, "https://notebook.google.com/notebook/e7e2e2e7")
         self.assertEqual(out, "WORKSPACE_URL_CANDIDATE_NOT_VERIFIED 1")
 
     def test_app_home_entry_not_notebook_workspace(self):
