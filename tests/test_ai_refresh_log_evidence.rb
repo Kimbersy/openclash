@@ -10,6 +10,15 @@ class TestAiRefreshLogEvidence < Minitest::Test
     "#{when_at.strftime('%Y-%m-%d %H:%M:%S')} [#{level}] #{msg}\n"
   end
 
+  def test_actual_upstream_log_delimiters
+    success = line(NOW - 70, 'Config File〖mine〗Update Successful!')
+    unchanged = line(NOW - 60, 'Config File〖mine〗No Change, Do Nothing!')
+    failed = line(NOW - 40, '〖mine〗Update Error, Please Try Again Later...', level: 'Error')
+    assert_equal 'SUCCESS_REPORTED', AiRefreshLogEvidence.classify(success, 'mine', now: NOW)['status']
+    assert_equal 'NO_CHANGE_REPORTED', AiRefreshLogEvidence.classify(unchanged, 'mine', now: NOW)['status']
+    assert_equal 'ERROR_REPORTED', AiRefreshLogEvidence.classify(success + failed, 'mine', now: NOW)['status']
+  end
+
   def test_exact_subscription_alias_and_update_success_is_not_remote_proof
     log = line(NOW - 70, 'Config File【mine】Update Successful!')
     r = AiRefreshLogEvidence.classify(log, 'mine', now: NOW)
