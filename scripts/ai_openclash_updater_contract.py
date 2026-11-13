@@ -19,6 +19,12 @@ from typing import Any
 # vernesong/OpenClash commit 588cec56111c6f54a1ae24a4b848afbecc1a2f7f
 # exact Git blob SHA for luci-app-openclash/root/usr/share/openclash/openclash.sh
 KNOWN_UPSTREAM_BLOB_SHA = "6c181265ca96c452660653d60ec552d58eccc12c"
+# Real installed iStoreOS 2026-11-14 07:51 read-only receipt, matched against
+# official vernesong/OpenClash source commit 813a60a21fba2ec34c3a42f7fdc3d71b47694d25.
+# This is the UPDATER FILE identity, not proof of the full installed package.
+KNOWN_DEVICE_UPDATER_BLOB_SHA = "ac6640de36be1cf7dc11ae73796a89078269542c"
+KNOWN_DEVICE_UPDATER_COMMIT = "813a60a21fba2ec34c3a42f7fdc3d71b47694d25"
+
 
 _HEX256 = re.compile(r"[0-9a-f]{64}\Z")
 _UUID = re.compile(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\Z")
@@ -77,6 +83,67 @@ def audit_updater(raw: bytes, *, expected_blob_sha: str = KNOWN_UPSTREAM_BLOB_SH
         "rollback_verified": False,
     }
 
+
+
+def audit_installed_device_updater(
+    raw: bytes, *, fixture_blob_sha: str | None = None
+) -> dict[str, object]:
+    """Audit byte-pinned August 2026 upstream script structure, offline only.
+
+    fixture_blob_sha is test-only; its presence forces real_device_pin=False,
+    and no return value authorizes installing/modifying updater code.
+    """
+    def stop(reason: str) -> dict[str, object]:
+        return {"status": reason, "real_device_pin": False,
+                "can_instrument": False, "allow_reconcile": False,
+                "allow_switch": False}
+
+    if not isinstance(raw, bytes) or not 200 <= len(raw) <= 500_000:
+        return stop("HOLD_SCRIPT_BYTES_INVALID")
+    expected = fixture_blob_sha or KNOWN_DEVICE_UPDATER_BLOB_SHA
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{40}", expected) is None:
+        return stop("HOLD_PIN_INVALID")
+    if git_blob_sha1(raw) != expected:
+        return stop("HOLD_DEVICE_VERSION_DRIFT")
+    try:
+        s = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return stop("HOLD_UNEXPECTED_SCRIPT_ENCODING")
+    start = s.find("\nconfig_su_check()\n{")
+    end = s.find("\nconfig_error()\n{", start + 1)
+    if start < 0 or end <= start:
+        return stop("HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+    scope = s[start:end]
+    err_start = end
+    err_end = s.find("\nchange_dns()\n{", err_start + 1)
+    if err_end < 0:
+        return stop("HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+    error_scope = s[err_start:err_end]
+    expected_statements = (
+        scope.count(EXPECTED_PLAIN_MV) == 2,
+        scope.count(EXPECTED_SUCCESS_LOG) == 2,
+        'cmp -s "$CONFIG_FILE" "$CFG_FILE"' in scope,
+        "No Change, Do Nothing!" in scope,
+        'if [ "$CONFIG_FILE" == "$CONFIG_PATH" ]; then' in scope,
+        'restart=1' in scope,
+        'dec_job_counter_and_restart "$restart"' in s,
+        'exit "$exit_code"' not in s,
+        'exit_code=' not in error_scope,
+    )
+    if not all(expected_statements):
+        return stop("HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+    return {
+        "status": "KNOWN_DEVICE_AUG2026_UNCHECKED_MOVE",
+        "real_device_pin": fixture_blob_sha is None,
+        "can_instrument": False,
+        "allow_reconcile": False,
+        "allow_switch": False,
+        "unchecked_move_branches": 2,
+        "unchecked_success_messages": 2,
+        "explicit_error_exit_state": False,
+        "script_returns_explicit_exit_code": False,
+        "restart_evidence_independent": False,
+    }
 
 def assess_postcommit_contract(
     *,
