@@ -103,8 +103,8 @@ def build_ai_only_candidate(
     if not qualified:
         return base_ini, {"status": "NO_BUSINESS_VERIFIED_POOL", "countries": 0, "nodes": 0}
 
-    original_groups = [line for line in lines if line.startswith(GROUP_PREFIX)]
-    original_rules = [line for line in lines if line.startswith(RULE_PREFIX)]
+    original_groups = [line.rstrip("\\r\\n") for line in lines if line.startswith(GROUP_PREFIX)]
+    original_rules = [line.rstrip("\\r\\n") for line in lines if line.startswith(RULE_PREFIX)]
     added_names = [ALL] + [PREFIX + cc for cc in qualified]
     existing_names = {line[len(GROUP_PREFIX):].split("`", 1)[0] for line in original_groups}
     if any(name in existing_names for name in added_names):
@@ -132,7 +132,7 @@ def build_ai_only_candidate(
     out_rules = [line for line in changed if line.startswith(RULE_PREFIX)]
     out_groups = [line for line in changed if line.startswith(GROUP_PREFIX)]
     expected_existing_groups = [
-        lines[index] if line.startswith(GROUP_PREFIX + AI_PARENT + "`select`") else line
+        lines[index].rstrip("\\r\\n") if line.startswith(GROUP_PREFIX + AI_PARENT + "`select`") else line
         for line in original_groups
     ]
     if out_rules != original_rules or out_groups[:len(original_groups)] != expected_existing_groups:
