@@ -13,15 +13,15 @@ module AiRefreshLogEvidence
 
   def event_kind(message, alias_name, level)
     return nil unless alias_name.is_a?(String) && !alias_name.empty?
-    prefix = "Config File【#{alias_name}】"
-    if message.start_with?(prefix)
+    prefix = ["Config File【#{alias_name}】", "Config File〖#{alias_name}〗"].find { |p| message.start_with?(p) }
+    if prefix
       suffix = message.delete_prefix(prefix)
       return 'SUCCESS_REPORTED' if level == 'Info' && suffix == 'Update Successful!'
       return 'NO_CHANGE_REPORTED' if level == 'Info' && suffix == 'No Change, Do Nothing!'
       return 'ERROR_REPORTED' if level == 'Error' &&
         (suffix.include?('Failed') || suffix.include?('Error'))
     end
-    if level == 'Error' && message.start_with?("【#{alias_name}】Update Error")
+    if level == 'Error' && (message.start_with?("【#{alias_name}】Update Error") || message.start_with?("〖#{alias_name}〗Update Error"))
       return 'ERROR_REPORTED'
     end
     nil
