@@ -84,7 +84,6 @@ class NotebookLmGateTest(unittest.TestCase):
     def test_ai_rule_set_has_precise_notebook_and_login_hosts(self):
         lines = (ROOT / "list/AI.list").read_text().splitlines()
         required = {
-            "DOMAIN,notebook.google",
             "DOMAIN-SUFFIX,notebook.google.com",
             "DOMAIN-SUFFIX,notebooklm.google",
             "DOMAIN-SUFFIX,notebooklm.google.com",
@@ -92,6 +91,9 @@ class NotebookLmGateTest(unittest.TestCase):
         }
         self.assertTrue(required.issubset(set(lines)))
         self.assertNotIn("DOMAIN-SUFFIX,google.com", lines)
+        # notebook.google is not shared across three clients without compatibility proof.
+        # If necessary, the exact host belongs in a router-local overlay only.
+        self.assertNotIn("DOMAIN,notebook.google", lines)
 
     def test_exact_proxy_and_redirect_limits(self):
         self.assertIn("--proto-redir '=https'", SOURCE)
