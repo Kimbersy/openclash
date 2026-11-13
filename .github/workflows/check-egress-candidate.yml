@@ -31,6 +31,7 @@ on:
       - scripts/ai_refresh_schedule_readonly.rb
       - scripts/ai_live_membership_readonly.rb
       - scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - scripts/ai_mobile_evidence_readonly.sh
       - tests/test_ai_live_membership_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
@@ -82,6 +83,7 @@ on:
       - scripts/ai_refresh_schedule_readonly.rb
       - scripts/ai_live_membership_readonly.rb
       - scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - scripts/ai_mobile_evidence_readonly.sh
       - tests/test_ai_live_membership_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
@@ -177,6 +179,17 @@ jobs:
         run: ruby -c scripts/ai_refresh_log_evidence.rb && ruby -I scripts tests/test_ai_refresh_log_evidence.rb
       - name: Combined read-only update and live core evidence bundle syntax
         run: ruby -c scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - name: iStoreOS mobile inline no-download Ruby/Psych evidence bundle smoke
+        run: |
+          sh -n scripts/ai_mobile_evidence_readonly.sh
+          sed '1,4d;$d' scripts/ai_mobile_evidence_readonly.sh | ruby -c
+          ! grep -q "require 'time'" scripts/ai_mobile_evidence_readonly.sh
+          output="$(sh scripts/ai_mobile_evidence_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^POST_UPDATE_ACTIVATION_EVIDENCE='
+          printf '%s\n' "$output" | grep -q '^LIVE_API='
+          printf '%s\n' "$output" | grep -q '^LIVE_PROXY_NAME_COVERAGE='
+          printf '%s\n' "$output" | grep -q 'PRODUCTION_WRITES=NONE'
       - name: Live Mihomo loopback GET snapshot read-only safety tests
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
