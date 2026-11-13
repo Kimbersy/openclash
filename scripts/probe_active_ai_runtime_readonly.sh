@@ -37,7 +37,8 @@ begin
       cwd=File.readlink("/proc/#{pid}/cwd")
       home=flag(argv,'-d') || flag(argv,'--dir') || cwd
       file=flag(argv,'-f') || flag(argv,'--config') || 'config.yaml'
-      file=File.expand_path(file, home.start_with?('/') ? home : cwd)
+      home=File.expand_path(home,cwd)
+      file=File.expand_path(file,home)
       next unless File.file?(file) && File.size(file).between?(1,20_000_000)
       found=[pid,argv,file]
       break
