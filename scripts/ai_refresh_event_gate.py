@@ -10,6 +10,8 @@ substitute for either observer. This gate never confers AI business qualificatio
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
+import json
 import re
 
 from reconcile_subscription import validate_manifest
@@ -37,6 +39,21 @@ def _fingerprint(value):
 
 def _id(value):
     return isinstance(value, str) and _EVENT.fullmatch(value) is not None
+
+
+def catalog_digest(manifest: dict) -> str:
+    """Hash canonical name->FULL connection fingerprints, never raw YAML bytes.
+
+    OpenClash may rewrite DNS/groups/metadata between subscribed and running
+    YAML. The adapter must separately read LIVE Mihomo nodes and calculate the
+    same canonical map digest; a copy of the disk file is not runtime proof.
+    """
+    validate_manifest(manifest)
+    payload = json.dumps(
+        manifest["node_fingerprints"], sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def assess(
@@ -98,8 +115,8 @@ def assess(
     if (loaded_at is None or loaded_at < observed
             or not 0 <= (now - loaded_at).total_seconds() <= max_age_seconds):
         return stop("RUNTIME_EVIDENCE_STALE_OR_PREUPDATE")
-    if runtime_event.get("live_node_manifest_sha256") != manifest_hash:
-        return stop("LIVE_SNAPSHOT_MISMATCH")
+    if runtime_event.get("live_node_identity_digest") != catalog_digest(manifest):
+        return stop("LIVE_NODE_IDENTITY_MISMATCH")
 
     return {"status": "VERIFIED_SNAPSHOT_READY", "reason": "PROOF_GATES_PASSED",
             "allow_reconcile": True, "allow_switch": False}
