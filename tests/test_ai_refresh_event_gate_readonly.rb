@@ -70,7 +70,7 @@ class TestAiRefreshEventGate < Minitest::Test
   end
 
   def test_sensitive_logs_are_not_echoed
-    data = "2026-11-13 03:10:00 Config File〖TEST-SUB〗Downloading URL〖https://example.org?token=PRIVATE〗\n"
+    data = +"2026-11-13 03:10:00 Config File〖TEST-SUB〗Downloading URL〖https://example.org?token=PRIVATE〗\n"
     data << "2026-11-13 04:00:00 Config File〖TEST-SUB〗Update Successful!\n"
     verdict = G.latest_event(data, ALIAS_NAME, NOW)
     assert_equal 'RECENT_REPLACED_LOG_HINT', verdict
