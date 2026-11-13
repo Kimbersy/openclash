@@ -14,6 +14,7 @@ on:
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
+      - scripts/ai_subscription_inventory.rb
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -22,6 +23,7 @@ on:
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
       - tests/test_prepare_local_probe_core.py
+      - tests/test_ai_subscription_inventory.rb
       - .github/workflows/check-egress-candidate.yml
   pull_request:
     paths:
@@ -33,6 +35,7 @@ on:
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
+      - scripts/ai_subscription_inventory.rb
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -41,6 +44,7 @@ on:
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
       - tests/test_prepare_local_probe_core.py
+      - tests/test_ai_subscription_inventory.rb
 
 permissions:
   contents: read
@@ -58,7 +62,9 @@ jobs:
       - name: Install isolated-audit YAML parser
         run: python -m pip install PyYAML==6.0.2
       - name: Ruby iStoreOS census syntax
-        run: ruby -c scripts/inspect_active_subscription.rb && ruby -c scripts/prepare_local_probe.rb && ruby -c scripts/prepare_local_probe_core.rb
+        run: ruby -c scripts/inspect_active_subscription.rb && ruby -c scripts/prepare_local_probe.rb && ruby -c scripts/prepare_local_probe_core.rb && ruby -c scripts/ai_subscription_inventory.rb
+      - name: Full-subscription inventory Ruby tests
+        run: ruby -I scripts tests/test_ai_subscription_inventory.rb
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
       - name: Unit and existing generator integration tests
