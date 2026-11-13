@@ -20,7 +20,7 @@ PUBLISHED_COMMON_GIT_BLOBS = {
 
 def git_blob_id(path: Path) -> str:
     raw = path.read_bytes()
-    return hashlib.sha1(f"blob {len(raw)}\\0".encode().replace(b"\\0", b"\\x00") + raw).hexdigest()
+    return hashlib.sha1(f"blob {len(raw)}".encode('ascii') + bytes([0]) + raw).hexdigest()
 
 
 class SharedThreeClientContract(unittest.TestCase):
