@@ -78,8 +78,10 @@ class AiOnlyCandidateTests(unittest.TestCase):
         base_lines = BASE.splitlines()
         new_lines = new.splitlines()
         new_non_ai = [l for l in new_lines if not l.startswith("custom_proxy_group=🤖 AI`")
-                      and not l.startswith("custom_proxy_group=🛡️AI·")]
-        self.assertEqual(base_lines[:len(new_non_ai)], new_non_ai)
+                      and not l.startswith("custom_proxy_group=🛡️AI·")
+                      and not l.startswith("; PRIVATE AI-ONLY VERIFIED CANDIDATE.")]
+        base_non_ai = [l for l in base_lines if not l.startswith("custom_proxy_group=🤖 AI`")]
+        self.assertEqual(base_non_ai, new_non_ai)
         self.assertEqual([l for l in base_lines if l.startswith("ruleset=")],
                          [l for l in new_lines if l.startswith("ruleset=")])
         self.assertEqual(meta, {"status": "PRIVATE_MANUAL_CANDIDATE_ONLY",
