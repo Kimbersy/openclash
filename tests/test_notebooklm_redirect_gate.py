@@ -48,7 +48,11 @@ class NotebookLmGateTest(unittest.TestCase):
 
     def test_app_entry_still_not_business_verified(self):
         out = classify(0, "https://notebook.google.com/notebook/e7e2e")
-        self.assertEqual(out, "APP_ENTRY_CANDIDATE_NOT_VERIFIED 1")
+        self.assertEqual(out, "WORKSPACE_URL_CANDIDATE_NOT_VERIFIED 1")
+
+    def test_app_home_entry_not_notebook_workspace(self):
+        self.assertEqual(classify(0, "https://notebook.google.com/"),
+                         "APP_ENTRY_CANDIDATE_NOT_VERIFIED 1")
 
     def test_marketing_page_not_app(self):
         self.assertEqual(classify(0, "https://notebook.google/"), "LANDING_ONLY_UNKNOWN 1")
