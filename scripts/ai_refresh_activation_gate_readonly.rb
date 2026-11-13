@@ -4,6 +4,7 @@
 # Never prints node names, alias, IP addresses, URLs, passwords or logfile lines.
 # A successful log entry and disk equality are not sufficient by themselves.
 require 'psych'
+require_relative 'ai_proc_clock_readonly'
 
 module AiRefreshActivationGate
   module_function
@@ -120,21 +121,7 @@ module AiRefreshActivationGate
   end
 
   def process_start(pid)
-    stat = File.read("/proc/#{pid}/stat")
-    tail = stat.split(') ', 2).fetch(1).split
-    ticks = Integer(tail.fetch(19)) # proc stat field 22, tail index 19 after fields 1,2
-    # Minimal iStoreOS may omit getconf: fail closed rather than aborting
-    # the entire anonymous evidence bundle. Never guess USER_HZ=100.
-    raw_hz = IO.popen(['getconf','CLK_TCK'], err: File::NULL) { |io| io.read.to_s.strip }
-    return nil unless raw_hz.match?(/\A[1-9][0-9]*\z/)
-    hz = raw_hz.to_i
-    uptime = Float(File.read('/proc/uptime').split.first)
-    return nil unless hz.between?(10,10_000) && uptime.positive? && ticks >= 0
-    started = Time.at(Time.now.to_f - uptime + ticks.to_f / hz)
-    return nil if started.to_f > Time.now.to_f + 3
-    started
-  rescue StandardError
-    nil
+    AiProcClockReadOnly.core_start_time(pid)
   end
 
   def definitions_match?(source, runtime)
