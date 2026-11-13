@@ -70,6 +70,12 @@
 - **上游OpenClash实现证据**：读取官方`vernesong/OpenClash/luci-app-openclash/root/usr/share/openclash/openclash.sh`的`config_su_check`，找到`Update Successful!`、`No Change, Do Nothing!`、`Update Error`逻辑和`dec_job_counter_and_restart "$restart"`在最后；`Update Successful!`字符串紧跟`mv`尝试且未严格检验`mv`退出码，所以**仅日志成功标记不能作可信最终业务更新回执**。官方`config-subscribe.lua`确认`auto_update`、`config_auto_update_mode`、`config_update_week_time`含每天周期。上游源码URL：https://raw.githubusercontent.com/vernesong/OpenClash/master/luci-app-openclash/root/usr/share/openclash/openclash.sh 。需以用户iStoreOS所装版本为准，不能直接断言其与当前上游逐字节相同。
 - **新的纯离线判定器**：`scripts/ai_refresh_transition_gate.py`+`tests/test_ai_refresh_transition_gate.py`（本PR候选）通过完整人工证据状态分类：更新事件`UPDATED/NO_CHANGE/ERROR/UNKNOWN`、源配置变化/文件与运行磁盘定义、活跃API可达/运行会员一致、**独立且关联到同一源指纹的真实内存重载证明**、最少2次稳定样本、非AI配置diff=0。数据不足全部HOLD，不因每日定时启用或GET/proxies名字相同就视为新凭据已被内核加载；在全部成立时只给`PLAN_INCREMENTAL_AI_ONLY`，**绝不写配置、更新资格状态、切换节点或扩大到非AI流量**。未发布。
 - **当前唯一工程下一步**：建立不泄露订阅URL、节点IP/密码、Mihomo secret的只读**真正更新事件+运行态证明采集器**，在原OpenClash正常更新时间完成后的候选观察中核验当前生效源的身份/更新完成（不能主动触发订阅重下或重载），对有必要的设备只取得一次匿名回执；证据通过后以既有动态manifest和三端AI-only生成器接出可停单实例DRY_RUN。未确认订阅更新成功和内核加载，禁止启动任何自动切换。
+## 2026-11-13：新增 Mihomo 控制接口匿名实时目录核验（只读，待实机）
+- 官方 Mihomo `GET /proxies` 可读取进程**当前内存中的代理名称与类型**；这比已通过的源YAML与运行YAML磁盘定义相等再前进一层，却仍**不能**证明服务器、密码、TLS及传输参数均实际热加载，也不能证明机场远程订阅成功。
+- 候选 `scripts/ai_live_membership_readonly.rb` 只在 /proc 精确找到一个正式 OpenClash 核心、确认 PID 独占的 127.0.0.1 controller监听端口后，通过curl GET本地 `/proxies`。秘钥仅在进程内存和curl标准输入，不通过命令参数、日志、公共仓库输出；原节点名称、IP和接口端口亦不回传。不得使用PUT/DELETE或触发provider健康检查。
+- 与现网原始活动配置核对**内嵌节点名称集合**，只有全部相同才输出 `EXACT_NAMES_ONLY`。遇到未来Provider节点、控制接口不在支持的本地形式、身份/监听端口不唯一或API无法读取时明确 BLOCK/UNAVAILABLE，**不强行认定运行失效或重载成功**。接口探针绝不修改现有AI/普通/流媒体/Disney规则和三端订阅。
+- 如果用户实机通过该probe，也只是能证实`运行中的API名字目录包含所有预期节点`；远端更新成功及**配置参数级别的运行身份**仍按`ai_refresh_event_gate.py`严格阻断，不能把GET /proxies的同名验证硬充为 reload verified。独立验收后的下一步才研究OpenClash订阅提交完成的事件/运行核心完整参数证明，并在确认成功前保持DRY_RUN。
+
 ## 唯一下一步
 
 **先开发增量变更→资格继承/失效→按需重测的纯离线调度器和合成回归**（新增/删除/同名换线/仅排序变化/下载失败/运行未生效/人工固定/连续失败/冷却）。固定Git提交并CI成功后，做**只读**设备核验：OpenClash正常每日更新的成功回执与实际运行版本同步状态，确认适合哪种钩子/轮询机制。**暂停剩余47节点的人工批次，不要求用户继续TTYD反复测。** 完成DRY_RUN和实际业务验收后再考虑自动控制，所有生产设置现阶段保持不动。
