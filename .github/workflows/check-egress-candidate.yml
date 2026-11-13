@@ -44,6 +44,7 @@ on:
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_installed_updater_preflight_readonly.sh
       - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
@@ -106,6 +107,7 @@ on:
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_installed_updater_preflight_readonly.sh
       - tests/test_ai_openclash_updater_contract.py
       - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
@@ -197,6 +199,23 @@ jobs:
           python -m unittest discover -s tests -p test_ai_service_stability_dry_run.py -v
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Short iStoreOS installed updater fingerprint no-network preflight smoke
+        run: |
+          sh -n scripts/ai_installed_updater_preflight_readonly.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          text=pathlib.Path('scripts/ai_installed_updater_preflight_readonly.sh').read_text()
+          m=re.search(r"<<'RUBY'\n(.*?)\nRUBY(?=\n|$)",text,re.S)
+          assert m, 'missing inline Ruby'
+          subprocess.run(['ruby','-c'],input=m.group(1),text=True,check=True)
+          assert 'curl ' not in text and 'wget ' not in text
+          PY
+          output="$(sh scripts/ai_installed_updater_preflight_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^UPDATER_PREFLIGHT=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^INSTALLED_UPDATER='
+          printf '%s\n' "$output" | grep -q '^KERNEL_AT_CLKTCK='
+          printf '%s\n' "$output" | grep -q '^UPDATER_PREFLIGHT=FINISHED PRODUCTION_WRITES=NONE'
       - name: Exact upstream updater version and protected postcommit contract safety
         run: |
           python -m py_compile scripts/ai_openclash_updater_contract.py
