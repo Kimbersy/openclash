@@ -29,6 +29,28 @@ module AiLiveMembership
     'UNEXPECTED_EXTRA_NAMES'
   end
 
+  # Anonymous counters only. Additional leaf entries are quarantined: a
+  # complete expected-name subset is not proof of the latest config reload,
+  # and unknown extra entries must never inherit AI service qualifications.
+  def name_coverage(expected, result)
+    return nil unless expected.is_a?(Array) && expected.all? { |x|
+      x.is_a?(Hash) && x['name'].is_a?(String) && !x['name'].empty?
+    }
+    names = expected.map { |x| x['name'] }
+    return nil unless names.uniq.size == names.size
+    return nil unless result.is_a?(Hash) && result['proxies'].is_a?(Hash)
+    proxies = result['proxies']
+    return nil unless proxies.all? { |name, value|
+      name.is_a?(String) && value.is_a?(Hash) && value['type'].is_a?(String)
+    }
+    leaf = proxies.filter_map do |name, data|
+      next if GROUP_TYPES.include?(data['type']) || BUILTIN_NAMES.include?(name)
+      name
+    end
+    {expected: names.length, present: (names & leaf).length,
+     extra_untrusted: (leaf - names).length}
+  end
+
   def flag(argv, key)
     idx = argv.index(key)
     return argv[idx + 1] if idx && idx + 1 < argv.length
@@ -155,6 +177,14 @@ module AiLiveMembership
     puts 'LIVE_API=READ_ONLY_GET_SUCCESS'
     puts "LIVE_API_AUTH_MODE=#{secret.empty? ? 'NO_SECRET_CONFIGURED' : 'BEARER_TOKEN_ACCEPTED'}"
     puts "LIVE_PROXY_NAME_COVERAGE=#{result} EXPECTED_DISK_NODES=#{count}"
+    if %w[EXACT_NAMES_ONLY UNEXPECTED_EXTRA_NAMES EXPECTED_MISSING].include?(result)
+      source_data = Psych.safe_load(File.binread(source), aliases: false)
+      counts = name_coverage(source_data['proxies'], data)
+      if counts && counts[:expected] == count
+        puts "LIVE_EXPECTED_NAME_PRESENT=#{counts[:present]} EXTRA_UNTRUSTED_NAMES=#{counts[:extra_untrusted]}"
+        puts 'AI_EXTRA_NAMES_ELIGIBLE=NO'
+      end
+    end
     puts 'LIVE_FULL_CREDENTIALS_MATCH=UNVERIFIED'
     puts 'REMOTE_SUBSCRIPTION_UPDATE_SUCCESS=UNVERIFIED'
     puts 'MIHOMO_RELOAD_FOR_LATEST_UPDATE=UNVERIFIED'
