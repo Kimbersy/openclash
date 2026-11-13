@@ -160,6 +160,30 @@ class StableServiceDryRunTests(unittest.TestCase):
         self.assertEqual(res["public"]["qualified_candidates"], 0)
         self.assertEqual(res["public"]["decision"], "NO_BUSINESS_VERIFIED_BACKUP")
 
+    def test_shared_ai_parent_requires_all_three_business_proofs(self):
+        args = scenario()
+        args["service"] = "shared_all_services"
+        self.assertEqual(plan_dry_run(**args)["public"]["decision"], "DRY_RUN_SWITCH_CANDIDATE")
+        args["previous_state"]["synthetic_01"]["services"]["notebooklm"]["checks"]["source_imported"] = False
+        result = plan_dry_run(**args)
+        self.assertEqual(result["public"]["qualified_candidates"], 1)
+        self.assertEqual(result["public"]["decision"], "NO_BUSINESS_VERIFIED_BACKUP")
+        self.assertIsNone(result["private_target"])
+
+    def test_changed_manifest_under_no_change_event_is_not_trusted(self):
+        args = scenario()
+        new_nodes = dict(args["current_manifest"]["node_fingerprints"])
+        new_nodes["synthetic_01"] = "b"*64
+        args["current_manifest"] = manifest(new_nodes)
+        self.assertEqual(plan_dry_run(**args)["public"]["decision"],
+                         "HOLD_MANIFEST_EVENT_INCONSISTENT")
+
+    def test_unknown_current_health_string_fails_closed(self):
+        with self.assertRaises(ValueError):
+            self.decision(current_healthy="UNKNOWN")
+        with self.assertRaises(ValueError):
+            self.decision(global_incident="false")
+
     def test_notebooklm_import_and_qa_are_mandatory(self):
         args = scenario()
         args["service"] = "notebooklm"
@@ -187,6 +211,8 @@ class StableServiceDryRunTests(unittest.TestCase):
         new_nodes = dict(args["current_manifest"]["node_fingerprints"])
         new_nodes["synthetic_01"] = "b"*64
         args["current_manifest"] = manifest(new_nodes)
+        args["refresh_signals"]["update_event"] = "UPDATED"
+        args["refresh_signals"]["source_changed"] = True
         res = plan_dry_run(**args)
         self.assertEqual(res["public"]["qualified_candidates"], 1)
         self.assertEqual(res["public"]["decision"], "NO_BUSINESS_VERIFIED_BACKUP")
