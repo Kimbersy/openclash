@@ -222,6 +222,7 @@ begin
   final=effective.to_s.downcase
   login=final.match?(/\Ahttps:\/\/accounts\.google\.com(?:[\/?#]|$)/)
   app=final.match?(/\Ahttps:\/\/(?:notebooklm\.google\.com|notebook\.google\.com)(?:[\/?#]|$)/)
+  workspace=final.match?(/\Ahttps:\/\/(?:notebooklm\.google\.com|notebook\.google\.com)\/notebook\/[a-z0-9_-]{6,}(?:[\/?#]|$)/)
   landing=final.match?(/\Ahttps:\/\/(?:notebooklm\.google|notebook\.google)(?:[\/?#]|$)/)
   state=if unsupported
     'UNSUPPORTED_REDIRECT_OBSERVED'
@@ -235,6 +236,8 @@ begin
     'ACCESS_DENIED_UNKNOWN_CAUSE'
   elsif code.to_i==429
     'RATE_LIMITED'
+  elsif app && workspace && code.to_i==200
+    'WORKSPACE_URL_CANDIDATE_NOT_VERIFIED'
   elsif app && code.to_i==200
     'APP_ENTRY_CANDIDATE_NOT_VERIFIED'
   elsif landing
