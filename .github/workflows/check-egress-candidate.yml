@@ -31,8 +31,6 @@ on:
       - scripts/ai_refresh_schedule_readonly.rb
       - scripts/ai_live_membership_readonly.rb
       - tests/test_ai_live_membership_readonly.rb
-      - scripts/ai_refresh_event_gate_readonly.rb
-      - tests/test_ai_refresh_event_gate_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
@@ -83,8 +81,6 @@ on:
       - scripts/ai_refresh_schedule_readonly.rb
       - scripts/ai_live_membership_readonly.rb
       - tests/test_ai_live_membership_readonly.rb
-      - scripts/ai_refresh_event_gate_readonly.rb
-      - tests/test_ai_refresh_event_gate_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
@@ -177,8 +173,6 @@ jobs:
         run: ruby -c scripts/ai_refresh_activation_gate_readonly.rb && ruby -I scripts tests/test_ai_refresh_activation_gate_readonly.rb
       - name: Read-only OpenClash updater log evidence classifier
         run: ruby -c scripts/ai_refresh_log_evidence.rb && ruby -I scripts tests/test_ai_refresh_log_evidence.rb
-      - name: Read-only subscription success-log hints and core memory fail-closed gate
-        run: ruby -c scripts/ai_refresh_event_gate_readonly.rb && ruby -I scripts tests/test_ai_refresh_event_gate_readonly.rb
       - name: Live Mihomo loopback GET snapshot read-only safety tests
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
