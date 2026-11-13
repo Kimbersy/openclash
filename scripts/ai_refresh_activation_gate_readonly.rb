@@ -123,10 +123,18 @@ module AiRefreshActivationGate
     stat = File.read("/proc/#{pid}/stat")
     tail = stat.split(') ', 2).fetch(1).split
     ticks = Integer(tail.fetch(19)) # proc stat field 22, tail index 19 after fields 1,2
-    hz = Integer(IO.popen(['getconf','CLK_TCK'], err: File::NULL) { |io| io.read.to_s.strip })
+    # Minimal iStoreOS may omit getconf: fail closed rather than aborting
+    # the entire anonymous evidence bundle. Never guess USER_HZ=100.
+    raw_hz = IO.popen(['getconf','CLK_TCK'], err: File::NULL) { |io| io.read.to_s.strip }
+    return nil unless raw_hz.match?(/\A[1-9][0-9]*\z/)
+    hz = raw_hz.to_i
     uptime = Float(File.read('/proc/uptime').split.first)
-    raise 'invalid_clock' unless hz.positive? && uptime.positive? && ticks >= 0
-    Time.at(Time.now.to_f - uptime + ticks.to_f / hz)
+    return nil unless hz.between?(10,10_000) && uptime.positive? && ticks >= 0
+    started = Time.at(Time.now.to_f - uptime + ticks.to_f / hz)
+    return nil if started.to_f > Time.now.to_f + 3
+    started
+  rescue StandardError
+    nil
   end
 
   def definitions_match?(source, runtime)
