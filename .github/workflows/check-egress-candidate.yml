@@ -40,6 +40,10 @@ on:
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
+      - scripts/ai_proc_clock_readonly.rb
+      - tests/test_ai_proc_clock_readonly.rb
+      - scripts/ai_refresh_causal_sequence.py
+      - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
       - list/AI.list
@@ -96,6 +100,10 @@ on:
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
       - scripts/ai_refresh_activation_gate_readonly.rb
+      - scripts/ai_proc_clock_readonly.rb
+      - tests/test_ai_proc_clock_readonly.rb
+      - scripts/ai_refresh_causal_sequence.py
+      - tests/test_ai_refresh_causal_sequence.py
       - tests/test_ai_refresh_activation_gate_readonly.rb
       - tests/test_ai_refresh_schedule_readonly.rb
       - list/AI.list
@@ -185,6 +193,12 @@ jobs:
           python -m unittest discover -s tests -p test_ai_service_stability_dry_run.py -v
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Kernel auxv clock and natural update chronology never fake runtime proof
+        run: |
+          ruby -c scripts/ai_proc_clock_readonly.rb
+          ruby -I scripts tests/test_ai_proc_clock_readonly.rb
+          python -m py_compile scripts/ai_refresh_causal_sequence.py
+          python -m unittest discover -s tests -p test_ai_refresh_causal_sequence.py -v
       - name: Read-only update success + post-update core activation evidence safety gate
         run: ruby -c scripts/ai_refresh_activation_gate_readonly.rb && ruby -I scripts tests/test_ai_refresh_activation_gate_readonly.rb
       - name: Read-only OpenClash updater log evidence classifier
