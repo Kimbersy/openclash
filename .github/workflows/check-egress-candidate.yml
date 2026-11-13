@@ -23,6 +23,8 @@ on:
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
+      - scripts/ai_refresh_schedule_readonly.rb
+      - tests/test_ai_refresh_schedule_readonly.rb
       - list/AI.list
       - Clash-Li.ini
       - generated/Clash-Meta-Android.template.yaml
@@ -60,6 +62,8 @@ on:
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
+      - scripts/ai_refresh_schedule_readonly.rb
+      - tests/test_ai_refresh_schedule_readonly.rb
       - list/AI.list
       - Clash-Li.ini
       - generated/Clash-Meta-Android.template.yaml
@@ -139,6 +143,8 @@ jobs:
           PY
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Read-only OpenClash subscription schedule and refresh provenance gate
+        run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
       - name: AI-only candidate preserves non-AI rules across Android and Shadowrocket
         run: python -m unittest discover -s tests -p test_render_ai_only_candidate.py -v
       - name: Shared converter baseline and Android/iOS isolation gate
