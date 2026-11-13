@@ -11,7 +11,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from ai_openclash_updater_contract import (
     audit_updater, assess_postcommit_contract, git_blob_sha1,
-    KNOWN_UPSTREAM_BLOB_SHA,
+    KNOWN_UPSTREAM_BLOB_SHA, KNOWN_DEVICE_UPDATER_BLOB_SHA,
+    KNOWN_DEVICE_UPDATER_COMMIT, audit_installed_device_updater,
 )
 
 FAKE_SOURCE = b"""#!/bin/bash
@@ -38,6 +39,39 @@ exit "$exit_code"
 """
 
 
+
+# Synthetic representation of version-specific Aug 2026 branch control flow.
+# The real fixed Git object is verified by GitHub, not mirrored in this test.
+FAKE_DEVICE_SOURCE = b"""#!/bin/bash
+# synthetic updater; never run or install this fixture on a router
+config_su_check()
+{
+  cmp -s "$CONFIG_FILE" "$CFG_FILE"
+  if [ "$?" -ne 0 ]; then
+    mv "$CFG_FILE" "$CONFIG_FILE" 2>/dev/null
+    LOG_OUT "Config File\xe3\x80\x90$name\xe3\x80\x91Update Successful!"
+  else
+    LOG_OUT "Config File\xe3\x80\x90$name\xe3\x80\x91No Change, Do Nothing!"
+    return
+  fi
+  mv "$CFG_FILE" "$CONFIG_FILE" 2>/dev/null
+  LOG_OUT "Config File\xe3\x80\x90$name\xe3\x80\x91Update Successful!"
+  if [ "$CONFIG_FILE" == "$CONFIG_PATH" ]; then
+    restart=1
+  fi
+}
+config_error()
+{
+  LOG_ERROR "Update Error"
+  rm -rf "$CFG_FILE"
+}
+change_dns()
+{
+  :
+}
+dec_job_counter_and_restart "$restart"
+"""
+
 def sample(**updates):
     values = {
         "device_updater_exactly_pinned": True,
@@ -62,6 +96,43 @@ def sample(**updates):
 
 
 class UpdaterPostcommitContractTests(unittest.TestCase):
+    def test_real_router_script_matches_official_august_2026_file_pin_not_package_version(self):
+        self.assertEqual(KNOWN_DEVICE_UPDATER_BLOB_SHA,
+                         "ac6640de36be1cf7dc11ae73796a89078269542c")
+        self.assertEqual(KNOWN_DEVICE_UPDATER_COMMIT,
+                         "813a60a21fba2ec34c3a42f7fdc3d71b47694d25")
+        self.assertNotEqual(KNOWN_DEVICE_UPDATER_BLOB_SHA, KNOWN_UPSTREAM_BLOB_SHA)
+        self.assertEqual(audit_installed_device_updater(FAKE_DEVICE_SOURCE)["status"],
+                         "HOLD_DEVICE_VERSION_DRIFT")
+
+    def test_aug_2026_two_unchecked_moves_and_missing_exit_code_are_detected(self):
+        fixture_sha = git_blob_sha1(FAKE_DEVICE_SOURCE)
+        result = audit_installed_device_updater(FAKE_DEVICE_SOURCE,
+                                                fixture_blob_sha=fixture_sha)
+        self.assertEqual(result["status"], "KNOWN_DEVICE_AUG2026_UNCHECKED_MOVE")
+        self.assertEqual(result["unchecked_move_branches"], 2)
+        self.assertEqual(result["unchecked_success_messages"], 2)
+        self.assertFalse(result["script_returns_explicit_exit_code"])
+        self.assertFalse(result["explicit_error_exit_state"])
+        self.assertFalse(result["real_device_pin"])
+        self.assertFalse(result["can_instrument"])
+        self.assertFalse(result["allow_switch"])
+
+    def test_aug_2026_old_version_guard_blocks_unexpected_hotfix_or_october_script(self):
+        altered = FAKE_DEVICE_SOURCE.replace(b"  restart=1", b"  restart=0")
+        self.assertEqual(audit_installed_device_updater(
+            altered, fixture_blob_sha=git_blob_sha1(altered))["status"],
+            "HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+        altered = FAKE_DEVICE_SOURCE + b'\nexit "$exit_code"\n'
+        self.assertEqual(audit_installed_device_updater(
+            altered, fixture_blob_sha=git_blob_sha1(altered))["status"],
+            "HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+        altered = FAKE_DEVICE_SOURCE.replace(b'rm -rf "$CFG_FILE"',
+                                             b'exit_code=1\n  rm -rf "$CFG_FILE"')
+        self.assertEqual(audit_installed_device_updater(
+            altered, fixture_blob_sha=git_blob_sha1(altered))["status"],
+            "HOLD_UNEXPECTED_SCRIPT_STRUCTURE")
+
     def test_real_upstream_pin_is_fixed_nonempty_and_not_a_runtime_attestation(self):
         self.assertEqual(KNOWN_UPSTREAM_BLOB_SHA,
                          "6c181265ca96c452660653d60ec552d58eccc12c")
