@@ -11,6 +11,8 @@ on:
       - scripts/prepare_isolated_audit.py
       - scripts/subscription_snapshot.py
       - scripts/reconcile_subscription.py
+      - scripts/ai_dynamic_refresh_planner.py
+      - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
@@ -25,6 +27,7 @@ on:
       - tests/test_prepare_isolated_audit.py
       - tests/test_subscription_snapshot.py
       - tests/test_reconcile_subscription.py
+      - tests/test_ai_dynamic_refresh_planner.py
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
       - tests/test_prepare_local_probe_core.py
@@ -39,6 +42,8 @@ on:
       - scripts/prepare_isolated_audit.py
       - scripts/subscription_snapshot.py
       - scripts/reconcile_subscription.py
+      - scripts/ai_dynamic_refresh_planner.py
+      - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
       - scripts/inspect_active_subscription.rb
       - scripts/prepare_local_probe.rb
       - scripts/prepare_local_probe_core.rb
@@ -53,6 +58,7 @@ on:
       - tests/test_prepare_isolated_audit.py
       - tests/test_subscription_snapshot.py
       - tests/test_reconcile_subscription.py
+      - tests/test_ai_dynamic_refresh_planner.py
       - tests/test_inspect_active_subscription.py
       - tests/test_prepare_local_probe.py
       - tests/test_prepare_local_probe_core.py
@@ -119,7 +125,9 @@ jobs:
           assert m,'missing NotebookLM classifier'
           subprocess.run(['ruby','-c'],input=m.group(1),text=True,check=True)
           PY
+      - name: Dynamic subscription AI qualification reconciliation tests
+        run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
       - name: Compile scripts
-        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py
+        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py scripts/ai_dynamic_refresh_planner.py
       - name: Unit and existing generator integration tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
