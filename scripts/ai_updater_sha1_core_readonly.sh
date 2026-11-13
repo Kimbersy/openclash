@@ -1,6 +1,6 @@
 #!/bin/sh
 # One-shot, read-only installed OpenClash updater fingerprint.
-# Pure Ruby core: NO sha1sum, wc, digest gem, openssl, download or config changes.
+# Pure Ruby core: no shell hash helpers, extra libraries, download or config changes.
 umask 077
 ruby <<'RUBY'
 module AiGitBlobSha1Core
