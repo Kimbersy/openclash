@@ -74,8 +74,9 @@ class TestAiLiveMembershipReadOnly < Minitest::Test
   end
 
   def test_no_router_environment_writes
-    out, status = capture_io { AiLiveMembership.run }
-    assert status == 0
+    status = nil
+    out, _err = capture_io { status = AiLiveMembership.run }
+    assert_equal 0, status
     refute_match(/password|NEVER_PRINT|private.test/, out)
   end
 end
