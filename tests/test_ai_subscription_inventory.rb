@@ -14,7 +14,7 @@ class AiSubscriptionInventoryTest < Minitest::Test
   end
   def test_providers_added_beyond_embedded_and_conflicts_not_hidden
     cfg={'proxies'=>[{'name'=>'A'},{'name'=>'B'}],'proxy-providers'=>{'s1'=>{},'s2'=>{}}}
-    loaded={'s1'=>{'proxies'=>[{'name'=>'C'},{'name'=>'D'}]},'s2'=>{'proxies'=>[{'name'=>'B'},{'name'=>'E'}]}}
+    loaded={'providers'=>{'s1'=>{'proxies'=>[{'name'=>'C'},{'name'=>'D'}]},'s2'=>{'proxies'=>[{'name'=>'B'},{'name'=>'E'}]}}}
     r=AiSubscriptionInventory.classify(cfg,loaded)
     assert_equal 2,r[:embedded]
     assert_equal 2,r[:provider_definitions]
@@ -25,9 +25,19 @@ class AiSubscriptionInventoryTest < Minitest::Test
   end
   def test_provider_missing_is_partial_not_a_verified_full_pool
     cfg={'proxy-providers'=>{'s1'=>{},'s2'=>{}},'proxies'=>[]}
-    r=AiSubscriptionInventory.classify(cfg,{'s1'=>{'proxies'=>[{'name'=>'A'}]}})
+    r=AiSubscriptionInventory.classify(cfg,{'providers'=>{'s1'=>{'proxies'=>[{'name'=>'A'}]}}})
     assert_equal 'PARTIAL',r[:provider_status]
     assert_equal 1,r[:provider_nodes_loaded]
+  end
+  def test_wrong_api_envelope_is_not_falsely_claimed_as_loaded
+    cfg={'proxy-providers'=>{'s1'=>{}}}
+    r=AiSubscriptionInventory.classify(cfg,{'s1'=>{'proxies'=>[{'name'=>'A'}]}})
+    assert_equal 'UNVERIFIED',r[:provider_status]
+    assert_equal 0,r[:provider_nodes_loaded]
+  end
+  def test_empty_provider_envelope_is_partial_not_complete
+    r=AiSubscriptionInventory.classify({'proxy-providers'=>{'s1'=>{}}},{'providers'=>{}})
+    assert_equal 'PARTIAL',r[:provider_status]
   end
   def test_unavailable_provider_is_unverified
     r=AiSubscriptionInventory.classify({'proxy-providers'=>{'s1'=>{}}})
