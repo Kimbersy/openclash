@@ -32,6 +32,8 @@ on:
       - scripts/ai_live_membership_readonly.rb
       - scripts/ai_refresh_live_evidence_bundle_readonly.rb
       - scripts/ai_mobile_evidence_readonly.sh
+      - scripts/ai_mobile_followup_readonly.sh
+      - tests/test_ai_mobile_followup_readonly.rb
       - tests/test_ai_live_membership_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
@@ -84,6 +86,8 @@ on:
       - scripts/ai_live_membership_readonly.rb
       - scripts/ai_refresh_live_evidence_bundle_readonly.rb
       - scripts/ai_mobile_evidence_readonly.sh
+      - scripts/ai_mobile_followup_readonly.sh
+      - tests/test_ai_mobile_followup_readonly.rb
       - tests/test_ai_live_membership_readonly.rb
       - scripts/ai_refresh_log_evidence.rb
       - tests/test_ai_refresh_log_evidence.rb
@@ -194,6 +198,15 @@ jobs:
             ! printf '%s\n' "$output" | grep -q '^LIVE_API=READ_ONLY_GET_SUCCESS'
           fi
           printf '%s\n' "$output" | grep -q 'PRODUCTION_WRITES=NONE'
+      - name: iStoreOS anonymous post-receipt core clock and extra-node follow-up tests
+        run: |
+          sh -n scripts/ai_mobile_followup_readonly.sh
+          sed '1,4d;$d' scripts/ai_mobile_followup_readonly.sh | ruby -c
+          ruby -I scripts tests/test_ai_mobile_followup_readonly.rb
+          output="$(sh scripts/ai_mobile_followup_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^FOLLOWUP=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^FOLLOWUP=FINISHED PRODUCTION_WRITES=NONE AI_SWITCH=NONE'
       - name: Live Mihomo loopback GET snapshot read-only safety tests
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
