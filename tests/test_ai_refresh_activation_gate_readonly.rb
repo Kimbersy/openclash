@@ -46,12 +46,20 @@ class TestAiRefreshActivationGate < Minitest::Test
                     "require 'time'"
   end
 
-  def test_missing_getconf_or_proc_is_safe_hold_not_an_exception
+  def test_missing_getconf_no_longer_blocks_native_kernel_auxv_clock
     assert_nil M.process_start(-999999)
+    original = M.process_start(Process.pid)
     IO.stub(:popen, ->(*_args, **_kwargs) { raise Errno::ENOENT }) do
-      assert_nil M.process_start(Process.pid)
+      without_getconf = M.process_start(Process.pid)
+      if original
+        assert_instance_of Time, without_getconf
+        assert_in_delta original.to_f, without_getconf.to_f, 3
+      else
+        assert_nil without_getconf # kernel auxv may be unavailable: still safe hold
+      end
     end
     assert_equal 'CORE_START_UNVERIFIED', decision(core_start_time:nil)
+    assert_equal 'COLD_START_AFTER_UPDATE_CANDIDATE', decision
   end
 
   def test_upstream_actual_alias_guillemets
