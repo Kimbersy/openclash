@@ -99,6 +99,7 @@ jobs:
         run: |
           sh -n scripts/ai_network_batch_once.sh
           TEST_CLASSIFIER=1 sh scripts/ai_network_batch_once.sh
+          TEST_GEO_CLASSIFIER=1 sh scripts/ai_network_batch_once.sh
           python - <<'PY'
           import pathlib, re, subprocess
           source = pathlib.Path('scripts/ai_network_batch_once.sh').read_text()
