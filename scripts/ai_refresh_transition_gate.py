@@ -12,7 +12,7 @@ EVENTS = frozenset(("UPDATED", "NO_CHANGE", "ERROR", "UNKNOWN"))
 DECISIONS = frozenset((
     "HOLD_UPDATE_UNCONFIRMED", "HOLD_REMOTE_ERROR", "HOLD_DISK_MISMATCH",
     "HOLD_RUNTIME_UNVERIFIED", "HOLD_UNSTABLE_SNAPSHOT",
-    "HOLD_EVENT_SOURCE_INCONSISTENT", "PLAN_INCREMENTAL_AI_ONLY",
+    "HOLD_EVENT_SOURCE_INCONSISTENT", "HOLD_NON_AI_INVARIANT_BREACH", "PLAN_INCREMENTAL_AI_ONLY",
     "KEEP_CURRENT_AI_CATALOG",
 ))
 
@@ -54,7 +54,12 @@ def decide_refresh(
     if type(non_ai_changes) is not int or non_ai_changes < 0:
         raise ValueError("invalid non-AI diff count")
     if non_ai_changes != 0:
-        return {"decision": "HOLD_NON_AI_INVARIANT_BREACH", "ai_catalog_apply": False}
+        return {
+            "decision": "HOLD_NON_AI_INVARIANT_BREACH",
+            "ai_catalog_apply": False,
+            "plan_reconciliation": False,
+            "preserve_non_ai": True,
+        }
     if update_event == "ERROR":
         decision = "HOLD_REMOTE_ERROR"
     elif update_event == "UNKNOWN":
