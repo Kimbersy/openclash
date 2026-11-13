@@ -2,7 +2,6 @@
 require 'minitest/autorun'
 require 'tempfile'
 require 'psych'
-require 'time'
 require_relative '../scripts/ai_refresh_activation_gate_readonly'
 class TestAiRefreshActivationGate < Minitest::Test
   M = AiRefreshActivationGate
@@ -28,6 +27,25 @@ class TestAiRefreshActivationGate < Minitest::Test
     }.merge(updates)
     M.decision(**args)
   end
+  def test_core_only_timestamp_parser_and_invalid_calendar_dates
+    # Router only has Ruby core + Psych: Time.strptime is optional stdlib.
+    good = M.parse_log_timestamp('2026-11-13 20:25:00')
+    assert_instance_of Time, good
+    assert_equal [2026, 11, 13, 20, 25, 0],
+                 [good.year, good.month, good.day, good.hour, good.min, good.sec]
+    assert_instance_of Time, M.parse_log_timestamp('2024-02-29 23:59:59')
+    %w[2026-02-29 2026-04-31 2026-13-01 2026-11-13T20:25:00].each do |invalid|
+      assert_nil M.parse_log_timestamp(invalid)
+    end
+    assert_nil M.parse_log_timestamp('2026-11-13 24:00:00')
+    assert_nil M.parse_log_timestamp('2026-11-13 20:60:00')
+    assert_nil M.parse_log_timestamp('2026-11-13 20:25:60')
+    assert_equal 'NO_LOG_EVENT', decision(
+      log: '2026-02-29 20:00:00 [Info] Config File【' + ALIAS_NAME + "】Update Successful!\n")
+    refute_includes File.binread(File.expand_path('../scripts/ai_refresh_activation_gate_readonly.rb', __dir__)),
+                    "require 'time'"
+  end
+
   def test_upstream_actual_alias_guillemets
     log = line("Config File〖#{ALIAS_NAME}〗Update Successful!")
     assert_equal 'COLD_START_AFTER_UPDATE_CANDIDATE', decision(log: log)
