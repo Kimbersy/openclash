@@ -19,6 +19,7 @@ on:
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
+      - list/AI.list
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -46,6 +47,7 @@ on:
       - scripts/ai_source_link_readonly.sh
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
+      - list/AI.list
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
