@@ -131,9 +131,11 @@ def build_ai_only_candidate(
     changed = candidate.splitlines()
     out_rules = [line for line in changed if line.startswith(RULE_PREFIX)]
     out_groups = [line for line in changed if line.startswith(GROUP_PREFIX)]
-    if out_rules != original_rules or out_groups[:len(original_groups)] != (
-        original_groups[:index] + [lines[index]] + original_groups[index+1:]
-    ):
+    expected_existing_groups = [
+        lines[index] if line.startswith(GROUP_PREFIX + AI_PARENT + "`select`") else line
+        for line in original_groups
+    ]
+    if out_rules != original_rules or out_groups[:len(original_groups)] != expected_existing_groups:
         raise ValueError("non-AI routing or group order was changed")
     return candidate, {"status": "PRIVATE_MANUAL_CANDIDATE_ONLY",
                        "countries": len(qualified), "nodes": len(members)}
