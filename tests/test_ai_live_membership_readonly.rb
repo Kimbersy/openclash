@@ -26,6 +26,27 @@ class TestAiLiveMembershipReadOnly < Minitest::Test
     assert_equal 'UNEXPECTED_EXTRA_NAMES', AiLiveMembership.check_names(sample,runtime(%w[TW1 HK1], 'extra'))
   end
 
+  def test_58_expected_names_with_single_unknown_leaf_are_covered_but_not_exact
+    expected = Array.new(58) { |i| {'name'=>"trusted-#{i}", 'server'=>'private.test', 'password'=>'NEVER_PRINT'} }
+    names = expected.map { |e| e['name'] }
+    payload = runtime(names,'extra-private-name')
+    assert_equal 'UNEXPECTED_EXTRA_NAMES', AiLiveMembership.check_names(expected,payload)
+    assert_equal({expected:58,present:58,extra_untrusted:1},
+      AiLiveMembership.name_coverage(expected,payload))
+    assert_equal({expected:58,present:57,extra_untrusted:1},
+      AiLiveMembership.name_coverage(expected,runtime(names.drop(1),'extra-private-name')))
+    counts = AiLiveMembership.name_coverage(expected,payload).to_s
+    refute_includes counts, 'extra-private-name'
+    refute_includes counts, 'NEVER_PRINT'
+  end
+
+  def test_extra_name_is_never_treated_as_expected_and_invalid_catalog_is_closed
+    assert_equal({expected:2,present:2,extra_untrusted:0},
+      AiLiveMembership.name_coverage(sample,runtime))
+    assert_nil AiLiveMembership.name_coverage(sample,{'proxies'=>{'TW1'=>{'type'=>nil}}})
+    assert_nil AiLiveMembership.name_coverage([{'name'=>'dup'},{'name'=>'dup'}],runtime)
+  end
+
   def test_no_credentials_or_name_output
     assert_equal 'BAD_API_PAYLOAD', AiLiveMembership.check_names(sample,{'proxies'=>{'TW1'=>{'name'=>'TW1'}}})
     assert_equal 'BAD_DISK_NODES', AiLiveMembership.check_names([{'name'=>'DUP'}, {'name'=>'DUP'}],runtime)
