@@ -22,6 +22,10 @@ on:
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
       - list/AI.list
+      - Clash-Li.ini
+      - generated/Clash-Meta-Android.template.yaml
+      - docs/AI_THREE_CLIENT_COMPATIBILITY_20261113.md
+      - tests/test_shared_three_client_contract.py
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -53,6 +57,10 @@ on:
       - scripts/ai_service_reachability_pilot.sh
       - scripts/ai_network_batch_once.sh
       - list/AI.list
+      - Clash-Li.ini
+      - generated/Clash-Meta-Android.template.yaml
+      - docs/AI_THREE_CLIENT_COMPATIBILITY_20261113.md
+      - tests/test_shared_three_client_contract.py
       - tests/test_audit_egress.py
       - tests/test_render_verified_candidate.py
       - tests/test_prepare_isolated_audit.py
@@ -127,6 +135,8 @@ jobs:
           PY
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Shared converter baseline and Android/iOS isolation gate
+        run: python -m unittest discover -s tests -p test_shared_three_client_contract.py -v
       - name: Compile scripts
         run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py scripts/ai_dynamic_refresh_planner.py
       - name: Unit and existing generator integration tests
