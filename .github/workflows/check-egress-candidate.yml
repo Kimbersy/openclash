@@ -12,6 +12,8 @@ on:
       - scripts/subscription_snapshot.py
       - scripts/reconcile_subscription.py
       - scripts/ai_dynamic_refresh_planner.py
+      - scripts/ai_refresh_event_gate.py
+      - tests/test_ai_refresh_event_gate.py
       - scripts/ai_refresh_transition_gate.py
       - tests/test_ai_refresh_transition_gate.py
       - scripts/render_ai_only_candidate.py
@@ -53,6 +55,8 @@ on:
       - scripts/subscription_snapshot.py
       - scripts/reconcile_subscription.py
       - scripts/ai_dynamic_refresh_planner.py
+      - scripts/ai_refresh_event_gate.py
+      - tests/test_ai_refresh_event_gate.py
       - scripts/ai_refresh_transition_gate.py
       - tests/test_ai_refresh_transition_gate.py
       - scripts/render_ai_only_candidate.py
@@ -147,6 +151,8 @@ jobs:
           PY
       - name: AI-only post-update multi-signal transition fail-closed tests
         run: python -m unittest discover -s tests -p test_ai_refresh_transition_gate.py -v
+      - name: Reject non-authenticated OpenClash update and Mihomo reload evidence
+        run: python -m unittest discover -s tests -p test_ai_refresh_event_gate.py -v
       - name: Dynamic subscription AI qualification reconciliation tests
         run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
@@ -156,6 +162,6 @@ jobs:
       - name: Shared converter baseline and Android/iOS isolation gate
         run: python -m unittest discover -s tests -p test_shared_three_client_contract.py -v
       - name: Compile scripts
-        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py scripts/ai_dynamic_refresh_planner.py scripts/render_ai_only_candidate.py scripts/ai_refresh_transition_gate.py
+        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py scripts/ai_dynamic_refresh_planner.py scripts/render_ai_only_candidate.py scripts/ai_refresh_event_gate.py scripts/ai_refresh_transition_gate.py
       - name: Unit and existing generator integration tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
