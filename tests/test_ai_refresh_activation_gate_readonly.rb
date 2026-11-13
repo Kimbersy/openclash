@@ -28,6 +28,13 @@ class TestAiRefreshActivationGate < Minitest::Test
     }.merge(updates)
     M.decision(**args)
   end
+  def test_upstream_actual_alias_guillemets
+    log = line("Config File〖#{ALIAS_NAME}〗Update Successful!")
+    assert_equal 'COLD_START_AFTER_UPDATE_CANDIDATE', decision(log: log)
+    changed = line("Config File〖#{ALIAS_NAME}〗No Change, Do Nothing!")
+    assert_equal 'NO_CONTENT_CHANGE', decision(log: changed)
+  end
+
   def test_positive_startup_after_update_with_matching_disks_is_only_candidate
     assert_equal 'COLD_START_AFTER_UPDATE_CANDIDATE', decision
   end
