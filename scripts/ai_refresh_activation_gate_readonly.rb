@@ -4,12 +4,27 @@
 # Never prints node names, alias, IP addresses, URLs, passwords or logfile lines.
 # A successful log entry and disk equality are not sufficient by themselves.
 require 'psych'
-require 'time'
 
 module AiRefreshActivationGate
   module_function
 
   MAX_AGE = 2 * 86_400
+  # Parse local OpenClash log timestamps using Ruby core only (OpenWrt ruby-core
+  # may not ship the optional 'time' stdlib). Reject invalid/normalized dates.
+  def parse_log_timestamp(raw)
+    parts = raw.split(/[- :]/).map { |v| Integer(v, 10) }
+    return nil unless parts.length == 6
+    year, month, day, hour, minute, second = parts
+    return nil unless year.between?(2000, 9999) && month.between?(1, 12) &&
+                      day.between?(1, 31) && hour.between?(0, 23) &&
+                      minute.between?(0, 59) && second.between?(0, 59)
+    value = Time.local(year, month, day, hour, minute, second)
+    return nil unless [value.year, value.month, value.day, value.hour, value.min, value.sec] == parts
+    value
+  rescue ArgumentError, RangeError
+    nil
+  end
+
   def events(log, alias_name)
     return [] unless log.is_a?(String) && alias_name.is_a?(String) && alias_name.bytesize.between?(1, 256)
     escaped = Regexp.escape(alias_name)
@@ -27,11 +42,8 @@ module AiRefreshActivationGate
                'FAILED'
              end
       next unless kind
-      begin
-        [Time.strptime(match[1], '%Y-%m-%d %H:%M:%S'), kind]
-      rescue ArgumentError
-        nil
-      end
+      parsed_time = parse_log_timestamp(match[1])
+      parsed_time && [parsed_time, kind]
     end
   end
 
