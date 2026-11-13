@@ -127,7 +127,11 @@ def assess_postcommit_contract(
         return result("HOLD_FINAL_YAML_NOT_VALIDATED")
     if selected_active_source is not True:
         return result("HOLD_NOT_ACTIVE_SOURCE")
-    if commit_outcome not in ("CHANGED", "NO_CHANGE"):
+    if commit_outcome == "NO_CHANGE":
+        # No replacement occurred. The unchanged-snapshot observer needs its
+        # own validated 304/re-download path, not an invented post-move event.
+        return result("HOLD_NO_NEW_COMMIT_SEPARATE_NO_CHANGE_PROOF")
+    if commit_outcome != "CHANGED":
         return result("HOLD_UNSUPPORTED_COMMIT_RESULT")
     if (not isinstance(staged_sha256, str) or not _HEX256.fullmatch(staged_sha256)
             or not isinstance(committed_sha256, str) or not _HEX256.fullmatch(committed_sha256)):
@@ -138,9 +142,7 @@ def assess_postcommit_contract(
         return result("HOLD_MOVE_FAILED")
     if readback_completed is not True:
         return result("HOLD_POSTMOVE_READBACK_MISSING")
-    if commit_outcome == "CHANGED" and source_config_was_changed is not True:
-        return result("HOLD_EVENT_SOURCE_INCONSISTENT")
-    if commit_outcome == "NO_CHANGE" and source_config_was_changed is not False:
+    if source_config_was_changed is not True:
         return result("HOLD_EVENT_SOURCE_INCONSISTENT")
     if marker_written_by_protected_hook is not True:
         return result("HOLD_NO_PROTECTED_COMMIT_MARKER")
