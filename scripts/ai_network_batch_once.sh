@@ -31,6 +31,44 @@ classify_http() {
     esac
   fi
 }
+geo_diagnostic() {
+  r1="$1";r2="$2";c1="$3";ip1="$4";c2="$5";ip2="$6"
+  if [ "$r1" -ne 0 ] && [ "$r2" -ne 0 ]; then echo BOTH_GEO_FETCH_FAILED;return;fi
+  if [ "$r1" -ne 0 ]; then echo IPINFO_FETCH_FAILED;return;fi
+  if [ "$r2" -ne 0 ]; then echo CLOUDFLARE_FETCH_FAILED;return;fi
+  case "$c1" in
+    [A-Z][A-Z]) : ;;
+    *) echo IPINFO_PARSE_FAILED;return ;;
+  esac
+  case "$ip1" in
+    *.*.*.*) : ;;
+    *) echo IPINFO_PARSE_FAILED;return ;;
+  esac
+  case "$c2" in
+    [A-Z][A-Z]) : ;;
+    *) echo CLOUDFLARE_PARSE_FAILED;return ;;
+  esac
+  case "$ip2" in
+    *.*.*.*) : ;;
+    *) echo CLOUDFLARE_NON_IPV4_OR_PARSE_FAILED;return ;;
+  esac
+  if [ "$ip1" != "$ip2" ]; then echo IPV4_MISMATCH;return;fi
+  if [ "$c1" != "$c2" ]; then echo COUNTRY_MISMATCH;return;fi
+  echo MATCH
+}
+if [ "${TEST_GEO_CLASSIFIER:-0}" = 1 ]; then
+  [ "$(geo_diagnostic 0 0 GB 198.51.100.1 GB 198.51.100.1)" = MATCH ] &&
+  [ "$(geo_diagnostic 28 0 '' '' GB 198.51.100.1)" = IPINFO_FETCH_FAILED ] &&
+  [ "$(geo_diagnostic 0 28 GB 198.51.100.1 '' '')" = CLOUDFLARE_FETCH_FAILED ] &&
+  [ "$(geo_diagnostic 28 28 '' '' '' '')" = BOTH_GEO_FETCH_FAILED ] &&
+  [ "$(geo_diagnostic 0 0 '' '' GB 198.51.100.1)" = IPINFO_PARSE_FAILED ] &&
+  [ "$(geo_diagnostic 0 0 GB 198.51.100.1 '' '')" = CLOUDFLARE_PARSE_FAILED ] &&
+  [ "$(geo_diagnostic 0 0 GB 198.51.100.1 GB 2001:db8::1)" = CLOUDFLARE_NON_IPV4_OR_PARSE_FAILED ] &&
+  [ "$(geo_diagnostic 0 0 GB 198.51.100.1 US 198.51.100.1)" = COUNTRY_MISMATCH ] &&
+  [ "$(geo_diagnostic 0 0 GB 198.51.100.1 GB 198.51.100.2)" = IPV4_MISMATCH ] &&
+  { echo 'GEO_CLASSIFIER_TEST=PASS';exit 0; }
+  echo 'GEO_CLASSIFIER_TEST=FAIL';exit 1
+fi
 if [ "${TEST_CLASSIFIER:-0}" = 1 ]; then
   [ "$(classify_http 0 200)" = HTTP_COMPLETE ] &&
   [ "$(classify_http 28 200)" = HTTP_INCOMPLETE_TIMEOUT ] &&
@@ -122,6 +160,13 @@ begin
   ps=c.fetch('proxies')
   raise unless ps.is_a?(Array) && ps.size==58 && ps.all?{|n|n.is_a?(Hash)&&n['name'].is_a?(String)&&n['type'].is_a?(String)}
   raise unless ps.map{|n|n['name']}.uniq.size==ps.size
+  begin
+    digest=IO.popen(['sha256sum',src],err:File::NULL){|io|io.read.to_s.split.first}
+    fingerprint=digest.to_s.match?(/\A[0-9a-f]{64}\z/) ? digest[0,16] : 'UNAVAILABLE'
+  rescue StandardError
+    fingerprint='UNAVAILABLE'
+  end
+  puts "SOURCE_SNAPSHOT_SHA256_PREFIX16=#{fingerprint}"
   sample=ps[idx-1]
   raise unless sample
   if sample['dialer-proxy'] || %w[direct reject reject-drop pass compatible].include?(sample['type'].downcase)
@@ -177,10 +222,11 @@ RUBY_PREP
   ipv4=$(printf '%s' "$ipdata" | cut -d'|' -f2)
   cfcc=$(printf '%s\n' "$cftrace" | sed -n 's/^loc=//p' | head -n 1)
   cfip=$(printf '%s\n' "$cftrace" | sed -n 's/^ip=//p' | head -n 1)
-  if [ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ] && [ -n "$ipcc" ] && [ "$ipcc" = "$cfcc" ] && [ "$ipv4" = "$cfip" ]; then
-    echo "$tag EXIT_COUNTRY=$ipcc GEO_SOURCES=AGREE IPV4_MATCH=YES"
+  geo_reason=$(geo_diagnostic "$rc1" "$rc2" "$ipcc" "$ipv4" "$cfcc" "$cfip")
+  if [ "$geo_reason" = MATCH ]; then
+    echo "$tag EXIT_COUNTRY=$ipcc GEO_SOURCES=AGREE IPV4_MATCH=YES GEO_DIAG=MATCH"
   else
-    echo "$tag EXIT_COUNTRY=UNVERIFIED GEO_SOURCES=INCOMPLETE_OR_CONFLICT"
+    echo "$tag EXIT_COUNTRY=UNVERIFIED GEO_SOURCES=INCOMPLETE_OR_CONFLICT GEO_DIAG=$geo_reason"
   fi
 
   for svc in CHATGPT GEMINI NOTEBOOKLM; do
