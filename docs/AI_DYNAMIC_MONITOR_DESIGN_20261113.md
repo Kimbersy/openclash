@@ -64,6 +64,12 @@
 - 动态状态/节点指纹/AI资格/防抖切换只能落到家中iStoreOS的本机私有后处理，不能通过公共主分支或Cloudflare Worker/KV同步至安卓Clash Mate、苹果Shadowrocket。安卓继续沿用现有转换，苹果端最终输出格式及导入兼容性必须单独真机核实；离线CI通过≠手机端验收通过。家庭Wi-Fi下两层代理交互需实机检查，外部4G/5G手机应不受路由器API控制。
 - 因为目前还没有证明OpenClash可在订阅转换后安全注入本地专用策略组，**不能先改公共转换模板凑功能**。后续以本机可逆、可回滚的独立覆盖层及受控单一Mihomo为主，先DRY_RUN，不改当前家庭网络选线。
 
+## 2026-11-13 20:55 UTC+8 实机只读更新机制回执与三重安全门
+
+- **设备原始回执（用户TTYD截图，尚未操作生产）**：固定只读脚本`ai_refresh_schedule_readonly.rb`显示`SCHEDULE_AUTO_UPDATE=ENABLED MODE=APPOINTMENT CADENCE=DAILY`、`SCHEDULE_SETTINGS=READ_ONLY`、`SOURCE_DISK=READABLE RUNTIME_CONFIG_DISK=READABLE`、`SOURCE_FILE_AGE=LT7D`、`SOURCE_RUNTIME_DISK_DEFINITIONS=MATCH`；同时`REMOTE_UPDATE_SUCCESS=UNVERIFIED`、`Mihomo_RELOAD_CONFIRMED=NO`、`AI_MONITOR_INSTALLED=NO`。**后两个NO是脚本显式的“未核验/未安装”信号，不是Mihomo重载失败的事实。** 可确证每天自动更新设置已启用、文件层节点定义匹配；不可从mtime或磁盘等价推出远程下载成功或内核内存新生效。
+- **上游OpenClash实现证据**：读取官方`vernesong/OpenClash/luci-app-openclash/root/usr/share/openclash/openclash.sh`的`config_su_check`，找到`Update Successful!`、`No Change, Do Nothing!`、`Update Error`逻辑和`dec_job_counter_and_restart "$restart"`在最后；`Update Successful!`字符串紧跟`mv`尝试且未严格检验`mv`退出码，所以**仅日志成功标记不能作可信最终业务更新回执**。官方`config-subscribe.lua`确认`auto_update`、`config_auto_update_mode`、`config_update_week_time`含每天周期。上游源码URL：https://raw.githubusercontent.com/vernesong/OpenClash/master/luci-app-openclash/root/usr/share/openclash/openclash.sh 。需以用户iStoreOS所装版本为准，不能直接断言其与当前上游逐字节相同。
+- **新的纯离线判定器**：`scripts/ai_refresh_transition_gate.py`+`tests/test_ai_refresh_transition_gate.py`（本PR候选）通过完整人工证据状态分类：更新事件`UPDATED/NO_CHANGE/ERROR/UNKNOWN`、源配置变化/文件与运行磁盘定义、活跃API可达/运行会员一致、**独立且关联到同一源指纹的真实内存重载证明**、最少2次稳定样本、非AI配置diff=0。数据不足全部HOLD，不因每日定时启用或GET/proxies名字相同就视为新凭据已被内核加载；在全部成立时只给`PLAN_INCREMENTAL_AI_ONLY`，**绝不写配置、更新资格状态、切换节点或扩大到非AI流量**。未发布。
+- **当前唯一工程下一步**：建立不泄露订阅URL、节点IP/密码、Mihomo secret的只读**真正更新事件+运行态证明采集器**，在原OpenClash正常更新时间完成后的候选观察中核验当前生效源的身份/更新完成（不能主动触发订阅重下或重载），对有必要的设备只取得一次匿名回执；证据通过后以既有动态manifest和三端AI-only生成器接出可停单实例DRY_RUN。未确认订阅更新成功和内核加载，禁止启动任何自动切换。
 ## 唯一下一步
 
 **先开发增量变更→资格继承/失效→按需重测的纯离线调度器和合成回归**（新增/删除/同名换线/仅排序变化/下载失败/运行未生效/人工固定/连续失败/冷却）。固定Git提交并CI成功后，做**只读**设备核验：OpenClash正常每日更新的成功回执与实际运行版本同步状态，确认适合哪种钩子/轮询机制。**暂停剩余47节点的人工批次，不要求用户继续TTYD反复测。** 完成DRY_RUN和实际业务验收后再考虑自动控制，所有生产设置现阶段保持不动。
