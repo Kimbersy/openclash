@@ -57,6 +57,13 @@
 - **缺口D**：在OpenClash候选配置生成点实现动态地区/服务受控select组成员更新；Mihomo单次“选择节点”的API不等同于向运行中增加代理或新建分组，避免错误承诺。
 - **缺口E**：验证实际Chrome/Google登录跨域及NotebookLM工作区，保证分流链始终采用相同出口；保持IPv4_ALL controller的现网网络边界只读核验待办。
 
+## 三端共用一个订阅转换的实施边界（用户新增硬性要求）
+
+- 用户确认：iStoreOS/OpenClash、Android Clash Mate、iOS/iPadOS Shadowrocket **三端共用一套订阅转换**。不能再假设手机订阅独立、修改公共`Clash-Li.ini`/`AI.list`不影响移动端。一个源可以生成终端适配结果，但不能把路由器专有控制组和API绑定推到所有客户端。
+- 三端隔离的完整契约在[`AI_THREE_CLIENT_COMPATIBILITY_20261113.md`](AI_THREE_CLIENT_COMPATIBILITY_20261113.md)，固定Git发布基线由`tests/test_shared_three_client_contract.py`保护，相关候选Git提交`83f7e1166064f507177e7baa298ccdb421cbf5ed`、Actions #43420258061 success。候选分支先前改变公共`AI.list`的`DOMAIN,notebook.google`已经撤销，公共转换三文件与已发布main保持同字节。
+- 动态状态/节点指纹/AI资格/防抖切换只能落到家中iStoreOS的本机私有后处理，不能通过公共主分支或Cloudflare Worker/KV同步至安卓Clash Mate、苹果Shadowrocket。安卓继续沿用现有转换，苹果端最终输出格式及导入兼容性必须单独真机核实；离线CI通过≠手机端验收通过。家庭Wi-Fi下两层代理交互需实机检查，外部4G/5G手机应不受路由器API控制。
+- 因为目前还没有证明OpenClash可在订阅转换后安全注入本地专用策略组，**不能先改公共转换模板凑功能**。后续以本机可逆、可回滚的独立覆盖层及受控单一Mihomo为主，先DRY_RUN，不改当前家庭网络选线。
+
 ## 唯一下一步
 
 **先开发增量变更→资格继承/失效→按需重测的纯离线调度器和合成回归**（新增/删除/同名换线/仅排序变化/下载失败/运行未生效/人工固定/连续失败/冷却）。固定Git提交并CI成功后，做**只读**设备核验：OpenClash正常每日更新的成功回执与实际运行版本同步状态，确认适合哪种钩子/轮询机制。**暂停剩余47节点的人工批次，不要求用户继续TTYD反复测。** 完成DRY_RUN和实际业务验收后再考虑自动控制，所有生产设置现阶段保持不动。
