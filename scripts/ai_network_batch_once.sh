@@ -189,16 +189,80 @@ RUBY_PREP
       GEMINI) url=https://gemini.google.com/ ;;
       NOTEBOOKLM) url=https://notebooklm.google.com/ ;;
     esac
-    result=$(curl -4 --noproxy '' -sS --proxy http://127.0.0.1:17881 --connect-timeout 4 --max-time 9 -o /dev/null -w '%{http_code} %{time_starttransfer} %{time_total} %{size_download}' "$url" 2>"$D/$svc.curl.log")
-    rc=$?
-    code=${result%% *}
-    rest=${result#* }
-    ttfb=${rest%% *}
-    rest=${rest#* }
-    total=${rest%% *}
-    bytes=${rest#* }
-    outcome=$(classify_http "$rc" "$code")
-    echo "$tag $svc=$outcome HTTP=$code CURL_RC=$rc TTFB_SEC=$ttfb TIME_SEC=$total BYTES=$bytes"
+    if [ "$svc" = NOTEBOOKLM ]; then
+      # Follow at most five HTTPS redirects via the SAME isolated proxy.
+      # Keep redirect locations and effective URL only in private files, never terminal.
+      result=$(curl -4 --noproxy '' -sS --proxy http://127.0.0.1:17881 \
+        --connect-timeout 4 --max-time 15 -L --max-redirs 5 --proto-redir '=https' \
+        -D "$D/notebooklm.headers" -o /dev/null \
+        -w '%{http_code} %{time_starttransfer} %{time_total} %{size_download} %{num_redirects} %{url_effective}' \
+        "$url" 2>"$D/$svc.curl.log")
+      rc=$?
+      printf '%s' "$result" >"$D/notebooklm.metadata"
+      code=${result%% *}
+      rest=${result#* }
+      ttfb=${rest%% *}
+      rest=${rest#* }
+      total=${rest%% *}
+      rest=${rest#* }
+      bytes=${rest%% *}
+      decision=$(ruby - "$D/notebooklm.headers" "$D/notebooklm.metadata" "$rc" <<'RUBY_NOTEBOOK'
+# Read redirect chain for a known access gate, but never print URLs or tokens.
+begin
+  header,metadata,rcstr=ARGV
+  raise unless File.file?(header) && File.size(header)<200_000
+  raise unless File.file?(metadata) && File.size(metadata)<16_000
+  h=File.binread(header)
+  code,ttfb,total,bytes,hops,effective=File.binread(metadata).split(' ',6)
+  raise unless code.to_s.match?(/\A\d{3}\z/) && hops.to_s.match?(/\A\d+\z/)
+  rc=Integer(rcstr)
+  urls=h.lines.grep(/\Alocation\s*:/i).map{|l|l.sub(/\Alocation\s*:\s*/i,'').strip}
+  urls << effective.to_s.strip
+  unsupported=urls.any?{|u|u.match?(/(?:[?&]location=unsupported(?:[&#]|$)|\/unsupported(?:[\/?#]|$))/i)}
+  final=effective.to_s.downcase
+  login=final.match?(/\Ahttps:\/\/accounts\.google\.com(?:[\/?#]|$)/)
+  app=final.match?(/\Ahttps:\/\/(?:notebooklm\.google\.com|notebook\.google\.com)(?:[\/?#]|$)/)
+  landing=final.match?(/\Ahttps:\/\/(?:notebooklm\.google|notebook\.google)(?:[\/?#]|$)/)
+  state=if unsupported
+    'UNSUPPORTED_REDIRECT_OBSERVED'
+  elsif rc==28
+    'HTTP_INCOMPLETE_TIMEOUT'
+  elsif rc!=0
+    'REQUEST_INCOMPLETE'
+  elsif login
+    'LOGIN_REQUIRED_UNKNOWN'
+  elsif code.to_i==403 || code.to_i==451
+    'ACCESS_DENIED_UNKNOWN_CAUSE'
+  elsif code.to_i==429
+    'RATE_LIMITED'
+  elsif app && code.to_i==200
+    'APP_ENTRY_CANDIDATE_NOT_VERIFIED'
+  elsif landing
+    'LANDING_ONLY_UNKNOWN'
+  else
+    'UNVERIFIED_REDIRECT_OR_HTTP'
+  end
+  puts "#{state} #{hops}"
+rescue StandardError
+  puts 'PARSER_FAILED 0'
+end
+RUBY_NOTEBOOK
+)
+      state=${decision%% *}
+      redirects=${decision#* }
+      echo "$tag NOTEBOOKLM=$state HTTP=$code CURL_RC=$rc TTFB_SEC=$ttfb TIME_SEC=$total BYTES=$bytes REDIRECTS=$redirects BUSINESS=UNKNOWN"
+    else
+      result=$(curl -4 --noproxy '' -sS --proxy http://127.0.0.1:17881 --connect-timeout 4 --max-time 9 -o /dev/null -w '%{http_code} %{time_starttransfer} %{time_total} %{size_download}' "$url" 2>"$D/$svc.curl.log")
+      rc=$?
+      code=${result%% *}
+      rest=${result#* }
+      ttfb=${rest%% *}
+      rest=${rest#* }
+      total=${rest%% *}
+      bytes=${rest#* }
+      outcome=$(classify_http "$rc" "$code")
+      echo "$tag $svc=$outcome HTTP=$code CURL_RC=$rc TTFB_SEC=$ttfb TIME_SEC=$total BYTES=$bytes"
+    fi
   done
   echo "$tag QUALIFICATION=NETWORK_HINT_ONLY BUSINESS=UNKNOWN"
   exit 0
