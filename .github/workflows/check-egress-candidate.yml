@@ -28,6 +28,8 @@ on:
       - scripts/ai_mihomo_version_only_readonly.rb
       - scripts/ai_notebook_native_capability_test.rb
       - scripts/ai_real_config_private_copy_native_gate.rb
+      - scripts/ai_rule_provider_inventory_readonly.rb
+      - tests/test_ai_rule_provider_inventory_readonly.rb
       - tests/make_ai_real_private_copy_mihomo_fixture.rb
       - tests/test_ai_real_config_private_copy_native_gate.rb
       - tests/test_ai_notebook_native_capability_test.rb
@@ -116,6 +118,8 @@ on:
       - scripts/ai_mihomo_version_only_readonly.rb
       - scripts/ai_notebook_native_capability_test.rb
       - scripts/ai_real_config_private_copy_native_gate.rb
+      - scripts/ai_rule_provider_inventory_readonly.rb
+      - tests/test_ai_rule_provider_inventory_readonly.rb
       - tests/make_ai_real_private_copy_mihomo_fixture.rb
       - tests/test_ai_real_config_private_copy_native_gate.rb
       - tests/test_ai_notebook_native_capability_test.rb
@@ -348,6 +352,10 @@ jobs:
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/native-ruby.yaml
           ruby tests/make_ai_real_private_copy_mihomo_fixture.rb /tmp/ai-probe-native/private-overlay.yaml
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/private-overlay.yaml
+      - name: Rule-providers real config HOLD follow-up, anonymous read-only inventory with no network
+        run: |
+          ruby -c scripts/ai_rule_provider_inventory_readonly.rb
+          ruby tests/test_ai_rule_provider_inventory_readonly.rb
       - name: Private real-config copy preflight without remote providers or routing changes
         run: |
           ruby -c scripts/ai_real_config_private_copy_native_gate.rb
