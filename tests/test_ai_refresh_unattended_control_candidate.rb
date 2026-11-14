@@ -160,6 +160,45 @@ class AiRefreshUnattendedControlCandidateTests < Minitest::Test
     assert_includes capture {G.unattended_detach(300,1000)},'HOLD_INVALID_BUDGET'
   end
 
+  def test_fork_detached_child_releases_control_lock_and_writes_final_receipt
+    skip 'fork or setsid unavailable on CI host' unless Process.respond_to?(:fork) && Process.respond_to?(:setsid)
+    with_private_paths do |dir|
+      launch=File.join(dir,'start_output')
+      saved=$stdout
+      begin
+        $stdout=File.open(launch,'w',0600)
+        G.stub(:run,proc {|duration:,interval:|
+          sleep 0.08
+          G.report('HOLD_NO_EVENT_BEFORE_DEADLINE')
+        }) do
+          G.unattended_detach(300,60)
+        end
+      ensure
+        $stdout.flush
+        $stdout.close
+        $stdout=saved
+      end
+      assert_includes File.read(launch),'UNATTENDED_START=START_SIGNAL_SENT_UNVERIFIED'
+      80.times do
+        break if G.receipt_status=='HOLD_NO_EVENT_BEFORE_DEADLINE'
+        sleep 0.03
+      end
+      assert_equal 'HOLD_NO_EVENT_BEFORE_DEADLINE', G.receipt_status
+      status=capture { G.unattended_status }
+      # Child must NOT retain the parent control flock for its whole lifespan.
+      refute_includes status,'HOLD_CONTROL_BUSY'
+      assert_includes status,'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
+      assert_includes status,'UNATTENDED_RECEIPT='
+      refute_includes status,'https:'
+      80.times do
+        break if G.state_liveness(G.read_state)=='EXITED'
+        sleep 0.03
+      end
+      assert_equal 'EXITED', G.state_liveness(G.read_state)
+      assert_includes capture{G.unattended_cleanup},'PRIVATE_SESSION_FILES_REMOVED'
+    end
+  end
+
   def test_no_unsafe_external_library_cron_procd_or_raw_receipt_release
     source=File.binread(File.expand_path('../scripts/ai_refresh_passive_observer_candidate.rb',__dir__))
     assert_empty source.scan(/^require ['"][^'"]+['"]$/)
