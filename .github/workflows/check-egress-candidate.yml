@@ -29,6 +29,9 @@ on:
       - scripts/ai_notebook_native_capability_test.rb
       - scripts/ai_real_config_private_copy_native_gate.rb
       - scripts/ai_rule_provider_inventory_readonly.rb
+      - scripts/ai_ruleset_cached_offline_overlay.py
+      - tests/test_ai_ruleset_cached_offline_overlay.py
+      - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
       - tests/make_ai_real_private_copy_mihomo_fixture.rb
       - tests/test_ai_real_config_private_copy_native_gate.rb
@@ -119,6 +122,9 @@ on:
       - scripts/ai_notebook_native_capability_test.rb
       - scripts/ai_real_config_private_copy_native_gate.rb
       - scripts/ai_rule_provider_inventory_readonly.rb
+      - scripts/ai_ruleset_cached_offline_overlay.py
+      - tests/test_ai_ruleset_cached_offline_overlay.py
+      - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
       - tests/make_ai_real_private_copy_mihomo_fixture.rb
       - tests/test_ai_real_config_private_copy_native_gate.rb
@@ -352,6 +358,12 @@ jobs:
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/native-ruby.yaml
           ruby tests/make_ai_real_private_copy_mihomo_fixture.rb /tmp/ai-probe-native/private-overlay.yaml
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/private-overlay.yaml
+          python tests/make_ai_cached_ruleset_native_fixture.py /tmp/ai-probe-native/cached-20
+          /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native/cached-20 -f /tmp/ai-probe-native/cached-20/config.yaml
+      - name: Cached HTTP rule providers private-file overlay offline tests
+        run: |
+          python -m py_compile scripts/ai_ruleset_cached_offline_overlay.py
+          python -m unittest discover -s tests -p test_ai_ruleset_cached_offline_overlay.py -v
       - name: Rule-providers real config HOLD follow-up, anonymous read-only inventory with no network
         run: |
           ruby -c scripts/ai_rule_provider_inventory_readonly.rb
