@@ -279,6 +279,7 @@ module AiRefreshPassiveObserverCandidate
 
   def with_control_lock
     lock=private_open(SESSION_CONTROL, File::RDWR|File::CREAT)
+    @control_lock=lock
     unless lock.flock(File::LOCK_EX|File::LOCK_NB)
       puts 'UNATTENDED_CONTROL_RESULT=HOLD_CONTROL_BUSY'
       return
@@ -287,6 +288,7 @@ module AiRefreshPassiveObserverCandidate
   rescue StandardError
     puts 'UNATTENDED_CONTROL_RESULT=HOLD_CONTROL_UNAVAILABLE'
   ensure
+    @control_lock=nil
     lock&.close
   end
 
@@ -319,7 +321,8 @@ module AiRefreshPassiveObserverCandidate
       s=read_state
       live=state_liveness(s)
       puts "UNATTENDED_SESSION=#{live}"
-      puts "UNATTENDED_RECEIPT=#{s==:absent ? 'NOT_PRESENT' : receipt_status}"
+      receipt=s==:absent ? 'NOT_PRESENT' : (live=='RUNNING' ? 'RUNNING_NOT_FINAL' : receipt_status)
+      puts "UNATTENDED_RECEIPT=#{receipt}"
       puts 'TRUSTED_REMOTE_COMMIT=NOT_VERIFIED MIHOMO_MEMORY_CREDENTIALS=NOT_VERIFIED'
       puts 'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
     end
@@ -389,6 +392,11 @@ module AiRefreshPassiveObserverCandidate
         read_end,write_end=IO.pipe
         pid=Process.fork do
           begin
+            # A fork inherits flock's open file description. Closing the
+            # child's copy releases control access once the parent exits;
+            # otherwise --status/--stop would remain blocked for hours.
+            @control_lock&.close
+            @control_lock=nil
             write_end.close
             ready=read_end.read(1)
             read_end.close
@@ -396,6 +404,8 @@ module AiRefreshPassiveObserverCandidate
             Process.setsid
             $stdin.reopen('/dev/null','r')
             $stdout.reopen(output)
+            output.close
+            $stdout.sync=true
             $stderr.reopen('/dev/null','w')
             state.close
             run(duration:duration,interval:interval)
