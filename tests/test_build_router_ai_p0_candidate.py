@@ -225,6 +225,56 @@ class RouterP0CandidateTests(unittest.TestCase):
         self.assertEqual(status["status"], "HOLD_NOT_A_DIRECT_LEAF")
         self.assertEqual(got, original)
 
+    def test_more_than_three_all_qualified_are_not_truncated_or_cross_region(self):
+        args = example()
+        for index in range(3, 8):
+            node = deepcopy(args["config"]["proxies"][0])
+            node["name"] = f"TEST_{index}"
+            node["server"] = f"example{index}.invalid"
+            node["sni"] = f"example{index}.invalid"
+            args["config"]["proxies"].append(node)
+            fp = fingerprint(node)
+            args["manifest"]["node_fingerprints"][node["name"]] = fp
+            args["live_names"].add(node["name"])
+            item = deepcopy(args["state"]["TEST_0"])
+            item["fingerprint"] = fp
+            for p in item["services"].values():
+                p["fingerprint"] = fp
+            args["state"][node["name"]] = item
+            obs = deepcopy(args["observations"]["TEST_0"])
+            obs["fingerprint"] = fp
+            obs["egress"]["fingerprint"] = fp
+            obs["health"]["fingerprint"] = fp
+            args["observations"][node["name"]] = obs
+        args["manifest"]["node_count"] = len(args["manifest"]["node_fingerprints"])
+        result, status = build_router_p0_candidate(**args)
+        self.assertEqual(status["status"], "OFFLINE_AI_FALLBACK_CANDIDATE_ONLY")
+        self.assertEqual(status["eligible"], 7)  # 2 TW originals + 5 new TW
+        self.assertEqual(status["selected"], 7)
+        self.assertEqual(len(result["proxy-groups"][-1]["proxies"]), 7)
+        for index in range(3, 8):
+            self.assertIn(f"TEST_{index}", result["proxy-groups"][-1]["proxies"])
+        self.assertNotIn("TEST_2", result["proxy-groups"][-1]["proxies"])
+        self.assertEqual(result["rules"], args["config"]["rules"])
+
+    def test_all_qualified_catalog_does_not_erase_service_specific_eligibility(self):
+        from ai_service_stability_dry_run import qualified_pool
+        args = example()
+        fp = args["manifest"]["node_fingerprints"]["TEST_1"]
+        args["state"]["TEST_1"]["services"]["notebooklm"]["status"] = "UNKNOWN"
+        shared = qualified_pool(args["manifest"], args["state"], args["observations"],
+                                args["live_names"], service="shared_all_services",
+                                region="TW", now=NOW)
+        chatgpt = qualified_pool(args["manifest"], args["state"], args["observations"],
+                                 args["live_names"], service="chatgpt",
+                                 region="TW", now=NOW)
+        self.assertEqual(len(shared), 1)
+        self.assertEqual(len(chatgpt), 2)
+        self.assertIn("TEST_1", [row["name"] for row in chatgpt])
+        unchanged, status = build_router_p0_candidate(**args)
+        self.assertEqual(status["status"], "HOLD_NO_BUSINESS_VERIFIED_MAIN_AND_BACKUP")
+        self.assertEqual(unchanged, args["config"])
+
     def test_same_country_region_lock_is_respected_and_global_not_auto_crossed(self):
         tw, stat = self.build()
         self.assertEqual(tw["proxy-groups"][-1]["proxies"], ["TEST_1", "TEST_0"])
