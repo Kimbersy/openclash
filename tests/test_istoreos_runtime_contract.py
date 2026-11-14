@@ -22,13 +22,14 @@ CACHE_STRUCTURE = ROOT / "scripts/ai_rule_cache_structure_readonly.rb"
 CACHE_SIZE_PROFILE = ROOT / "scripts/ai_rule_cache_size_profile_readonly.rb"
 TWO_CACHE_STATIC = ROOT / "scripts/ai_two_cache_static_readonly.rb"
 LIVE_RULE_PROVIDER = ROOT / "scripts/ai_live_rule_provider_readonly.rb"
+RUNTIME_LEAF_INVENTORY = ROOT / "scripts/ai_runtime_leaf_inventory_readonly.rb"
 SOCKET_OWNER_DIAG = ROOT / "scripts/ai_controller_socket_diagnostic_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY}
 DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
@@ -50,6 +51,11 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertNotRegex(source, r"""(?m)^\s*require_relative\b""")
             self.assertNotRegex(source, r"\bTimeout\s*\.")
             self.assertNotRegex(source, r"""(?m)^\s*require\s+['"]timeout['"]""")
+            if path == RUNTIME_LEAF_INVENTORY:
+                self.assertIn("LIVE_FULL_CONNECTION_FINGERPRINTS=NOT_VERIFIED", source)
+                self.assertIn("ENABLED_SUBSCRIPTION_SOURCE_COVERAGE=NOT_VERIFIED", source)
+                self.assertIn("GET_ONLY_IPV4=YES", source)
+                self.assertNotIn("Process.spawn", source)
             if path == SOCKET_OWNER_DIAG:
                 self.assertIn("CONTROLLER_HTTP=NOT_REQUESTED", source)
                 self.assertIn("PROVIDER_REFRESH=NOT_RUN", source)
@@ -98,7 +104,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG):
+            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY):
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -129,6 +135,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("ai_two_cache_static_readonly.rb", workflow)
         self.assertIn("ai_live_rule_provider_readonly.rb", workflow)
         self.assertIn("ai_controller_socket_diagnostic_readonly.rb", workflow)
+        self.assertIn("ai_runtime_leaf_inventory_readonly.rb", workflow)
 
 
 if __name__ == "__main__":
