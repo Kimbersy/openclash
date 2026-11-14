@@ -10,7 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from ai_three_service_browser_flow_gate import APP_HOSTS, CHECKS, GOOGLE_LOGIN, GEMINI_API_HOSTS, check_browser_workflow_receipt
+from ai_three_service_browser_flow_gate import APP_HOSTS, CHECKS, GOOGLE_LOGIN, GEMINI_API_HOSTS, check_browser_workflow_receipt, classify_notebooklm_trial_click
 from ai_service_stability_dry_run import WORKFLOW_TASKS, business_verified
 
 NOW = datetime(2026, 11, 14, 2, 0, tzinfo=timezone.utc)
@@ -52,6 +52,61 @@ class AiFlowRoutingAcceptance(unittest.TestCase):
         self.assertNotIn(SESSION, repr(result))
         self.assertNotIn(FP, repr(result))
         return result
+
+    def test_user_three_screens_trial_button_paths_are_distinct(self):
+        cases = (
+            # 10:33: marketing landing page visible, no CTA clicked.
+            ("https://notebook.google/", False,
+             "NOTEBOOK_MARKETING_PAGE_ONLY", False),
+            # 10:34: after real CTA click, icid is a positive app
+            # transition signal. It is NOT the notebook's workspace ID.
+            ("https://notebook.google.com/?icid=home_maincta&_gl=synthetic",
+             True, "NOTEBOOK_CTA_APP_TRANSITION_CANDIDATE", True),
+            # 10:45: the button goes to the unsupported gate instead.
+            ("https://notebook.google/?location=unsupported",
+             True, "NOTEBOOK_UNSUPPORTED_AFTER_TRIAL_CLICK", False),
+        )
+        for url, clicked, expected, should_continue in cases:
+            with self.subTest(expected=expected):
+                outcome = classify_notebooklm_trial_click(
+                    browser_url=url, trial_button_clicked=clicked,
+                )
+                self.assertEqual(outcome["decision"], expected)
+                self.assertEqual(outcome["continue_business_test"], should_continue)
+                self.assertFalse(outcome["business_verified"])
+                self.assertFalse(outcome["allow_switch"])
+                self.assertFalse(outcome["live_writes"])
+                self.assertNotIn(url, repr(outcome))
+                self.assertNotIn("synthetic", repr(outcome))
+
+    def test_icid_without_user_click_or_on_marketing_host_cannot_pass(self):
+        for url, clicked, expected in (
+            ("https://notebook.google.com/?icid=home_maincta", False,
+             "HOLD_UNVERIFIED_CLICK_CONTEXT"),
+            ("https://notebook.google/?icid=home_maincta", True,
+             "NOTEBOOK_MARKETING_PAGE_ONLY"),
+            ("https://notebook.google.com/?icid=", True,
+             "HOLD_TRIAL_CLICK_UNRESOLVED"),
+            ("http://notebook.google.com/?icid=home_maincta", True,
+             "HOLD_MALFORMED_BROWSER_URL"),
+            ("https://notebook.google.com.attacker.invalid/?icid=home_maincta",
+             True, "HOLD_UNREVIEWED_REDIRECT_HOST"),
+        ):
+            outcome = classify_notebooklm_trial_click(
+                browser_url=url, trial_button_clicked=clicked,
+            )
+            self.assertEqual(outcome["decision"], expected)
+            self.assertFalse(outcome["business_verified"])
+
+    def test_unsupported_wins_over_icid_and_is_not_permanent_node_ban(self):
+        outcome = classify_notebooklm_trial_click(
+            browser_url="https://notebook.google.com/?icid=home_maincta&location=unsupported",
+            trial_button_clicked=True,
+        )
+        self.assertEqual(outcome["decision"], "NOTEBOOK_UNSUPPORTED_AFTER_TRIAL_CLICK")
+        self.assertFalse(outcome["continue_business_test"])
+        self.assertNotIn("fingerprint", repr(outcome))
+        self.assertNotIn("node", repr(outcome).lower())
 
     def test_real_pool_requirements_never_weaker_than_real_browser_checklist(self):
         # Otherwise a synthetic browser gate might reject an incomplete NotebookLM
