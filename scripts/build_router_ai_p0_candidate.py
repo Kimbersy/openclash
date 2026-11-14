@@ -3,6 +3,8 @@
 
 Reuse existing full-node fingerprints, genuine service business receipts,
 observed exit country and bounded health from ai_service_stability_dry_run.
+The generator retains every eligible node in the selected-region pool.
+The first 2-3-node live pilot is NOT a permanent final catalog limit.
 The generator intentionally does not install or write configuration, perform
 proxy tests, send controller PUTs, or enable automation. In particular:
 - no changing any rules, proxy definitions, providers, or non-AI groups;
@@ -27,7 +29,6 @@ from reconcile_subscription import validate_manifest
 PARENT = "🤖 AI"
 AUTO = "🛡️AI·路由器自动主备"
 HEALTH_URL = "https://cp.cloudflare.com/generate_204"
-MAX_BACKUPS = 3
 
 
 def fingerprint(node: dict[str, Any]) -> str:
@@ -113,7 +114,9 @@ def build_router_p0_candidate(
     # Native fallback health check must target direct leaf names; no indirect
     # shared-country / other-business group, DIRECT, REJECT or unknown extras.
     selected = []
-    for item in pool[:MAX_BACKUPS]:
+    # Full qualified directory, not the initial two-or-three-node pilot.
+    # Heat/cold probing budgets belong to a separate scheduler, not pool truncation.
+    for item in pool:
         node = actual[item["name"]]
         if (node.get("type") in (None, "select", "url-test", "fallback", "DIRECT", "REJECT")
                 or item["name"] in names
