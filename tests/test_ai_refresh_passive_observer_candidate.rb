@@ -186,6 +186,10 @@ class AiRefreshPassiveObserverCandidateTests < Minitest::Test
     assert_includes s,"'uci','-q','get','openclash.config.config_path'"
     assert_includes s,'File::LOCK_EX|File::LOCK_NB'
     assert_includes s,"trap('TERM')"
+    assert_includes s,"trap('HUP')"
+    assert_includes s,'break if stopped'
+    assert_includes s,'File.lstat(LOG).symlink?'
+    assert_includes s,'BASELINE_SNAPSHOT=AVAILABLE ONLY_METADATA=YES'
     assert_includes s,"Process::CLOCK_MONOTONIC"
     assert_includes s,'MAX_SECONDS = 86_400'
     assert_includes s,"ARGV[0]=='--probe'"
