@@ -17,10 +17,10 @@
 
 ## 唯一下一步：一次固定SHA的正式内核IPv4 loopback只读GET
 
-用户只需要在家里iStoreOS TTYD运行下面**唯一**固定源码命令一次；外层curl下载公开固定Git单文件放在`/tmp`，内层脚本只尝试一次已通过监听归属检查的本机**IPv4** GET。不要安装软件或改IPv6：
+用户只需要在家里iStoreOS TTYD运行下面**唯一**固定源码命令一次；外层curl也强制`-4`使用IPv4下载公开固定Git单文件放在`/tmp`，内层脚本只尝试一次已通过监听归属检查的本机**IPv4** GET。不要安装软件或改IPv6：
 
 ```sh
-( umask 077; f="$(mktemp /tmp/ai_rulelive_ipv4_XXXXXX)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/737fa71f040b7f34296b78ac9c89fecf480ea4da/scripts/ai_live_rule_provider_readonly.rb"; then ruby "$f" || echo "LIVE_RULE_RESULT=HOLD_SCRIPT_RUNTIME"; else echo "LIVE_RULE_RESULT=HOLD_DOWNLOAD_UNAVAILABLE"; fi; rm -f "$f" )
+( umask 077; f="$(mktemp /tmp/ai_rulelive_ipv4_XXXXXX)" || exit 1; if curl -4 -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/737fa71f040b7f34296b78ac9c89fecf480ea4da/scripts/ai_live_rule_provider_readonly.rb"; then ruby "$f" || echo "LIVE_RULE_RESULT=HOLD_SCRIPT_RUNTIME"; else echo "LIVE_RULE_RESULT=HOLD_DOWNLOAD_UNAVAILABLE"; fi; rm -f "$f" )
 ```
 
 只回传`LIVE_RULE_RESULT`、`SOCKET_OWNER_CLASS`、`CONTROLLER_TRANSPORT`和所有`API_*`/ `MRS_RUNTIME_RULECOUNT`匿名行（或截图）。`HOLD`即停止，**不得重跑旧20:33脚本、20:54 socket探针、旧MRS/Geo/缓存检查，也不为通过而打开IPv6出口、修改Controller绑定或防火墙**。如果API显示20个全部登记，继续推进真实AI服务业务资格和安全灰度；如果HOLD，后续工程端仅针对新阻断码研究，不伪称系统故障。
