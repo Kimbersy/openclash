@@ -167,7 +167,16 @@ module AiRuntimeLeafNamesReadOnly
     nil
   end
 
-  BUILTINS = %w[DIRECT REJECT REJECT-DROP PASS COMPATIBLE GLOBAL].freeze
+  # Official Mihomo preset names: ignore ONLY when API type also matches.
+  # PASS-RULE was absent in the earlier list and may account for one extra.
+  # Unknown entries must never silently become trusted AI leaf nodes.
+  BUILTIN_NAME_TYPE = {
+    'DIRECT' => 'Direct', 'REJECT' => 'Reject',
+    'REJECT-DROP' => 'RejectDrop', 'PASS' => 'Pass',
+    'PASS-RULE' => 'PassRule', 'COMPATIBLE' => 'Compatible',
+    'GLOBAL' => 'Selector'
+  }.freeze
+  BUILTINS = BUILTIN_NAME_TYPE.keys.freeze
   GROUP_TYPES = %w[Selector URLTest Fallback LoadBalance Relay Compatible].freeze
 
   def expected_leaf_snapshot(cfg)
@@ -186,8 +195,35 @@ module AiRuntimeLeafNamesReadOnly
     names = embedded.map { |x| x['name'] }
     gnames = groups.map { |x| x['name'] }
     return [nil, 'HOLD_NAME_COLLISION'] unless names.uniq == names &&
-      gnames.uniq == gnames && (names & (gnames + BUILTINS)).empty?
+      gnames.uniq == gnames && (names & (gnames + BUILTINS)).empty? &&
+      (gnames & BUILTINS).empty?
     [{ 'leaves' => names, 'groups' => gnames }, 'SNAPSHOT_READY']
+  end
+
+  def extra_classification(snapshot, api)
+    return nil unless snapshot.is_a?(Hash) && api.is_a?(Hash) &&
+      api['proxies'].is_a?(Hash)
+    expected = snapshot['leaves'] + snapshot['groups']
+    counts = {'API_EXTRA_PRESET_MATCHED' => 0,
+              'API_EXTRA_PRESET_TYPE_MISMATCH' => 0,
+              'API_EXTRA_SPECIAL_TYPE_UNCLASSIFIED' => 0,
+              'API_EXTRA_OTHER_UNCLASSIFIED' => 0}
+    api['proxies'].each do |n, value|
+      next if expected.include?(n)
+      type = value['type']
+      if BUILTIN_NAME_TYPE.key?(n)
+        if type == BUILTIN_NAME_TYPE[n]
+          counts['API_EXTRA_PRESET_MATCHED'] += 1
+        else
+          counts['API_EXTRA_PRESET_TYPE_MISMATCH'] += 1
+        end
+      elsif %w[PassRule Pass Rematch Dns RejectDrop].include?(type)
+        counts['API_EXTRA_SPECIAL_TYPE_UNCLASSIFIED'] += 1
+      else
+        counts['API_EXTRA_OTHER_UNCLASSIFIED'] += 1
+      end
+    end
+    counts
   end
 
   def compare_snapshot(snapshot, api)
@@ -200,17 +236,23 @@ module AiRuntimeLeafNamesReadOnly
     names = snapshot['leaves']
     groups = snapshot['groups']
     all = api['proxies']
-    # Unaccounted runtime groups are NOT eligible for AI or treated as leaves.
+    extra = extra_classification(snapshot, api)
+    # No name-based exclusion without checking official preset API type.
+    # A newly named "PASS-RULE" of type "Trojan" is NOT a preset.
     unaccounted_groups = all.count { |n, x|
-      GROUP_TYPES.include?(x['type']) && !groups.include?(n) && !BUILTINS.include?(n)
+      GROUP_TYPES.include?(x['type']) && !groups.include?(n) &&
+        BUILTIN_NAME_TYPE[n] != x['type']
     }
     leaves = all.keys.reject { |n|
-      groups.include?(n) || BUILTINS.include?(n) ||
+      groups.include?(n) || BUILTIN_NAME_TYPE[n] == all[n]['type'] ||
         GROUP_TYPES.include?(all[n]['type'])
     }
     present = (leaves & names).length
     missing = names.length - present
-    extra = (leaves - names).length
+    # Include both unknown leaf candidates and reserved-name/type mismatches.
+    unknown_extra = extra['API_EXTRA_PRESET_TYPE_MISMATCH'] +
+      extra['API_EXTRA_SPECIAL_TYPE_UNCLASSIFIED'] +
+      extra['API_EXTRA_OTHER_UNCLASSIFIED']
     expected_as_group = names.count { |n|
       all.key?(n) && GROUP_TYPES.include?(all[n]['type'])
     }
@@ -219,12 +261,12 @@ module AiRuntimeLeafNamesReadOnly
       'CONFIG_PROXY_PROVIDER_COUNT' => 0,
       'API_EXPECTED_LEAF_PRESENT' => present,
       'API_EXPECTED_LEAF_MISSING' => missing,
-      'API_EXTRA_UNTRUSTED_LEAF' => extra,
+      'API_EXTRA_UNTRUSTED_LEAF' => unknown_extra,
       'API_UNACCOUNTED_GROUP' => unaccounted_groups,
       'API_EXPECTED_AS_GROUP' => expected_as_group
-    }
-    result = if missing == 0 && extra == 0 && expected_as_group == 0 &&
-        unaccounted_groups == 0
+    }.merge(extra)
+    result = if missing == 0 && unknown_extra == 0 &&
+        expected_as_group == 0 && unaccounted_groups == 0
       'LIVE_LEAF_NAME_COVERAGE_PASS'
     else
       'HOLD_RUNTIME_LEAF_MISMATCH'
