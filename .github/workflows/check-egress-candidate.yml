@@ -25,6 +25,8 @@ on:
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
+      - scripts/ai_mihomo_version_only_readonly.rb
+      - tests/test_ai_mihomo_version_only_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/test_istoreos_runtime_contract.py
       - tests/make_ai_notebook_native_mihomo_fixture.py
@@ -106,6 +108,8 @@ on:
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
+      - scripts/ai_mihomo_version_only_readonly.rb
+      - tests/test_ai_mihomo_version_only_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/test_istoreos_runtime_contract.py
       - tests/make_ai_notebook_native_mihomo_fixture.py
@@ -330,6 +334,10 @@ jobs:
           chmod 700 /tmp/ai-probe-native/mihomo
           python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
           /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
+      - name: Real iStoreOS core version-only diagnostic, no stdout/stderr leakage
+        run: |
+          ruby -c scripts/ai_mihomo_version_only_readonly.rb
+          ruby tests/test_ai_mihomo_version_only_readonly.rb
       - name: iStoreOS minimal-runtime dependency contract (real-device allowlist)
         run: |
           python -m unittest discover -s tests -p test_istoreos_runtime_contract.py -v
