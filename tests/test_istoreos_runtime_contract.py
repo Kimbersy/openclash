@@ -12,12 +12,13 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 ADMISSION = ROOT / "scripts/ai_notebook_router_admission_readonly.rb"
+VERSION_ONLY = ROOT / "scripts/ai_mihomo_version_only_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY}
 DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
@@ -42,6 +43,10 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertIn("IO.select", source)
             self.assertIn("read_nonblock", source)
             self.assertIn("PRODUCTION_WRITES=NONE", source)
+            if path == VERSION_ONLY:
+                self.assertNotIn("require 'psych'", source)
+                self.assertIn("2>&1", source)
+                self.assertIn("AUTO_SWITCH=OFF", source)
 
     def test_unverified_probe_is_not_marked_device_ready(self):
         self.assertTrue(DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK.isdisjoint(
