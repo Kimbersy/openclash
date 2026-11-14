@@ -39,7 +39,12 @@ module NotebookCtaLite
       uri = URI.parse(effective.to_s)
       return 'LIGHT_UNKNOWN_UNREVIEWED_URL' unless uri.is_a?(URI::HTTPS)
       host = uri.host&.downcase
-      return 'LIGHT_LOGIN_REQUIRED_UNKNOWN' if LOGIN.include?(host)
+      # User-observed CTA behavior: a genuinely unsupported exit takes the
+      # location=unsupported branch BEFORE the Google login path. A login
+      # redirect on a dedicated isolated-node CTA GET is thus a useful
+      # POSITIVE FIRST-STAGE signal, pending a real positive/negative pair
+      # calibration. It does NOT attest the signed-in Notebook workspace.
+      return 'LIGHT_LOGIN_PATH_CANDIDATE_UNVERIFIED' if LOGIN.include?(host)
       return 'LIGHT_MARKETING_ONLY' if LANDING.include?(host)
       return 'LIGHT_APP_HTTP_CANDIDATE_UNVERIFIED' if APP.include?(host) && http_code.to_i == 200
     rescue URI::InvalidURIError, ArgumentError
