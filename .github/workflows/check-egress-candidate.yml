@@ -21,6 +21,8 @@ on:
       - scripts/render_ai_only_candidate.py
       - scripts/build_router_ai_p0_candidate.py
       - scripts/ai_full_region_refresh_dry_run.py
+      - scripts/ai_three_service_browser_flow_gate.py
+      - tests/test_ai_three_service_browser_flow_gate.py
       - tests/test_ai_full_region_refresh_dry_run.py
       - tests/test_build_router_ai_p0_candidate.py
       - tests/test_render_ai_only_candidate.py
@@ -92,6 +94,8 @@ on:
       - scripts/render_ai_only_candidate.py
       - scripts/build_router_ai_p0_candidate.py
       - scripts/ai_full_region_refresh_dry_run.py
+      - scripts/ai_three_service_browser_flow_gate.py
+      - tests/test_ai_three_service_browser_flow_gate.py
       - tests/test_ai_full_region_refresh_dry_run.py
       - tests/test_build_router_ai_p0_candidate.py
       - tests/test_render_ai_only_candidate.py
@@ -296,6 +300,10 @@ jobs:
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
         run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
+      - name: Three AI websites and NotebookLM browser import same-exit acceptance DRY_RUN
+        run: |
+          python -m py_compile scripts/ai_three_service_browser_flow_gate.py
+          python -m unittest discover -s tests -p test_ai_three_service_browser_flow_gate.py -v
       - name: Router P0 all AI service pools, dynamic real-egress countries and incremental refresh dry run
         run: |
           python -m py_compile scripts/ai_full_region_refresh_dry_run.py
