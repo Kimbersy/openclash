@@ -85,7 +85,7 @@ module AiRuntimeLeafNamesReadOnly
   def match_listener_fds(entries, target_inodes, reader = nil)
     return nil unless entries.is_a?(Array) && !entries.empty? &&
       entries.size <= 20_000 && target_inodes.is_a?(Array) &&
-      target_inodes.between?(1, 1000) &&
+      target_inodes.length.between?(1, 1000) &&
       target_inodes.all? { |n| n.is_a?(String) && n.match?(/\A[0-9]+\z/) }
     want = {}
     target_inodes.each { |n| want[n] = true }
