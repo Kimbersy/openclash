@@ -54,6 +54,8 @@ on:
       - tests/test_ai_source_runtime_definitions_readonly.rb
       - scripts/ai_active_subscriptions_metadata_readonly.rb
       - tests/test_ai_active_subscriptions_metadata_readonly.rb
+      - scripts/ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -171,6 +173,8 @@ on:
       - tests/test_ai_source_runtime_definitions_readonly.rb
       - scripts/ai_active_subscriptions_metadata_readonly.rb
       - tests/test_ai_active_subscriptions_metadata_readonly.rb
+      - scripts/ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -416,6 +420,10 @@ jobs:
         run: |
           ruby -c scripts/ai_controller_socket_diagnostic_readonly.rb
           ruby tests/test_ai_controller_socket_diagnostic_readonly.rb
+      - name: Bounded single-instance passive update chronology cannot authorize AI writes or switching
+        run: |
+          ruby -c scripts/ai_refresh_passive_observer_candidate.rb
+          ruby tests/test_ai_refresh_passive_observer_candidate.rb
       - name: Real OpenClash enabled subscription UCI flags with anonymous no-HTTP census
         run: |
           ruby -c scripts/ai_active_subscriptions_metadata_readonly.rb
