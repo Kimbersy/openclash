@@ -118,10 +118,11 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
   end
 
   def test_linux_proc_starttime_parse_handles_spaces_and_missing_field
-    prefix=Array.new(19,'1').join(' ')
+    prefix=Array.new(18,'1').join(' ')
     stat="123 (mihomo process (testing)) S #{prefix} 432109 99"
-    # S is field 3; nineteen numeric values cover fields 4..22.
-    assert_equal '1',G.proc_starttime(stat)
+    # S is field 3; eighteen dummy fields 4..21, then field 22 starttime.
+    assert_equal '432109',G.proc_starttime(stat)
+    assert_match(/\A[0-9]+\z/,G.proc_starttime(File.binread('/proc/self/stat')))
     assert_nil G.proc_starttime('not a proc stat')
     assert_nil G.proc_starttime('55 (mihomo) S 1 2')
     assert_nil G.proc_starttime('')
