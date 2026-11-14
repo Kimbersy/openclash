@@ -47,14 +47,15 @@ module AiLiveRuleProviderReadOnly
   end
 
   def listener_owned?(pid, port)
-    inodes = %w[/proc/net/tcp /proc/net/tcp6].flat_map do |f|
-      next [] unless File.file?(f)
-      File.foreach(f).drop(1).filter_map do |line|
-        fields = line.split
-        next unless fields.length > 9 && fields[3] == '0A' &&
-          fields[1].split(':').last.to_i(16) == port
-        fields[9]
-      end
+    # An IPv4 127.0.0.1 request needs an IPv4 listening socket bound to
+    # 127.0.0.1 or 0.0.0.0. A WAN-bound socket on the same port is not proof.
+    inodes = File.foreach('/proc/net/tcp').drop(1).filter_map do |line|
+      fields = line.split
+      next unless fields.length > 9 && fields[3] == '0A'
+      address, port_hex = fields[1].split(':')
+      next unless %w[0100007F 00000000].include?(address.upcase) &&
+        port_hex.to_i(16) == port
+      fields[9]
     end
     return false if inodes.empty?
     Dir["/proc/#{pid}/fd/*"].any? do |fd|
@@ -173,6 +174,10 @@ module AiLiveRuleProviderReadOnly
       return
     end
     response = api_read(secret,port)
+    unless listener_owned?(pid,port)
+      puts 'LIVE_RULE_RESULT=HOLD_CONTROLLER_OWNER_CHANGED'
+      return
+    end
     unless response
       puts 'LIVE_RULE_RESULT=HOLD_API_UNAVAILABLE'
       return
