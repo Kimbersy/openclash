@@ -36,6 +36,8 @@ on:
       - tests/test_ai_rule_cache_byte_copy_gate.rb
       - scripts/ai_real_config_resource_gate.py
       - tests/test_ai_real_config_resource_gate.py
+      - scripts/ai_netns_capability_readonly.sh
+      - tests/test_ai_netns_capability_readonly.py
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -135,6 +137,8 @@ on:
       - tests/test_ai_rule_cache_byte_copy_gate.rb
       - scripts/ai_real_config_resource_gate.py
       - tests/test_ai_real_config_resource_gate.py
+      - scripts/ai_netns_capability_readonly.sh
+      - tests/test_ai_netns_capability_readonly.py
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -376,6 +380,10 @@ jobs:
         run: |
           ruby -c scripts/ai_geo_flags_only_readonly.rb
           ruby tests/test_ai_geo_flags_only_readonly.rb
+      - name: Isolated child netns capability anonymous audit (not an egress proof)
+        run: |
+          sh -n scripts/ai_netns_capability_readonly.sh
+          python -m unittest discover -s tests -p test_ai_netns_capability_readonly.py -v
       - name: External Geo DNS assets and real private-config fail-closed offline audit
         run: |
           python -m py_compile scripts/ai_real_config_resource_gate.py
