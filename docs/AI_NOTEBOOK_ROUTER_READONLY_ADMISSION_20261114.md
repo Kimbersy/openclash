@@ -1,5 +1,7 @@
 # 路由器P0：NotebookLM单核心低能耗入口的**一键只读准入**（2026-11-14 12:21后）
 
+> **2026-11-14 13:55 用户首次实机回执及重复问题永久处理（最新覆盖下文旧提交/旧命令）**：iStoreOS TTYD执行旧`13fbc70`脚本后，`require 'psych'`正常但`require 'timeout'`报`LoadError`，**在任何内核版本、17881端口或实际配置检查执行前已退出**；这不是Notebook节点故障/配置不兼容/检查通过。根因是GitHub Ubuntu Ruby有完整标准库，iStoreOS精简Ruby没有。已从独立脚本删除`timeout`依赖，使用内建`IO.select`/非阻塞读取和三秒时限，仅清理新产生的版本查询子进程；加入故意挂起子进程的回归及**发布前强制设备Ruby依赖白名单**（用户现机只证实`psych`可用），持续CI检查；`open3`/`tempfile`/`uri`的Notebook下一步探测器**仍未获得设备证明，禁止直接交付执行**。家庭IT总[AGENTS.md](https://github.com/Kimbersy/home-it-index/blob/main/AGENTS.md)已新增跨窗口发布硬规则。固定修复脚本+回归+门禁[Git `0ed2a1b3bf726ac107647c050be8553fb977d7b6`](https://github.com/Kimbersy/openclash/commit/0ed2a1b3bf726ac107647c050be8553fb977d7b6)。**即使CI成功，家中修复版仍未运行；不得冒称已读到实机内核/端口。**
+
 > **最新实质结果**：已创建完全自包含的`scripts/ai_notebook_router_admission_readonly.rb`，只检查当前家用iStoreOS上Mihomo的进程版本、17881 TCP监听占用与**运行配置**能否容纳独立检测入口，所有私有值在本机内存检查，向TTYD只输出匿名状态；**GitHub源码与CI通过，不是用户家中已执行回执**。此前单核心独立listener方案已由官方Mihomo v1.19.34原生`-t`测试通过，但**不能代替用户实机内核版本/端口/配置验证**。
 
 ## 交付验收（不偏离P0主线）
@@ -25,7 +27,7 @@
 以下通过HTTPS下载**固定提交**的**一个Ruby脚本**到`/tmp`临时文件、执行只读检查后删除临时文件；**不改任何正式配置、不改当前AI选择、不调用Controller PUT/网络测速、不重启**。仅本机临时文件创建与删除，不声称绝对“零写盘”。
 
 ```sh
-( umask 077; f="$(mktemp /tmp/ai_nbr_XXXXXX)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/13fbc70a79dbd395884977825f5a4d89b1ec4b37/scripts/ai_notebook_router_admission_readonly.rb"; then ruby "$f"; else echo "ADMISSION=HOLD_DOWNLOAD_UNAVAILABLE PRODUCTION_WRITES=NONE"; fi; rm -f "$f" )
+( umask 077; f="$(mktemp /tmp/ai_nbr_XXXXXX)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/0ed2a1b3bf726ac107647c050be8553fb977d7b6/scripts/ai_notebook_router_admission_readonly.rb"; then ruby "$f" || echo "ADMISSION=HOLD_SCRIPT_RUNTIME PRODUCTION_WRITES=NONE"; else echo "ADMISSION=HOLD_DOWNLOAD_UNAVAILABLE PRODUCTION_WRITES=NONE"; fi; rm -f "$f" )
 ```
 
 这不是远程执行/实时验收；用户未实际运行之前只保留`DEVICE_ADMISSION=UNTESTED`。发生错误时不根据上一个版本的成功状态推断最新结果。用户只需将**不包含私有内容的匿名状态输出**返回，不需要提供完整配置、订阅URL、节点标签或IP。
@@ -37,4 +39,4 @@
 - [ ] **家中iStoreOS当前版本/端口与运行配置只读准入尚未实际执行**；用户无需重查旧58/58、100Hz、0.47.151脚本文件。
 - [ ] 实机当前内核对真实私有副本的`-t`、独立测试组`REJECT`回读、正负节点HTTPS CTA校准、正式三个AI业务资格、订阅后自动更新与真实故障接替均未过，当前不能发布AI自动切线。
 
-**唯一下一步**：取得用户一次性**只读匿名准入回执**（上面固定单脚本命令）。如果`HOLD`，只针对该项差异定位，不要求重复旧检测；如果达到`READY_FOR_PRIVATE_COPY_NATIVE_TEST_ONLY`，下一步才做受保护配置副本的当前核心`-t`与回滚方案，集中说明灰度影响并等用户明确授权，**未获授权不能安装监听/切换任何现网组**。不新增后台任务，不购VPS。
+**唯一下一步**：取得用户执行**上述已修复且经过新的依赖门禁CI的单文件版本**的匿名只读准入回执；此前13:55报错归档为`DEPENDENCY_LOAD_ERROR_BEFORE_CHECKS`，不用再执行旧SHA命令。如果`HOLD`，只针对该项差异定位，不要求重复旧检测；如果达到`READY_FOR_PRIVATE_COPY_NATIVE_TEST_ONLY`，下一步才做受保护配置副本的当前核心`-t`与回滚方案，集中说明灰度影响并等用户明确授权，**未获授权不能安装监听/切换任何现网组**。不新增后台任务，不购VPS。
