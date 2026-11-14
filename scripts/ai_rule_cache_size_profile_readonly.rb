@@ -59,7 +59,7 @@ module AiRuleCacheSizeProfile
       'FORMAT_YAML' => 0, 'FORMAT_TEXT' => 0, 'FORMAT_MRS' => 0,
       'YAML_LE_1M' => 0, 'YAML_GT_1M' => 0,
       'ALL_LE_1M' => 0, 'ALL_GT_1M' => 0,
-      'ALL_GT_4M' => 0, 'ALL_GT_8M' => 0
+      'ALL_GT_4M' => 0
     }
     total = 0
     seen = {}
@@ -86,7 +86,6 @@ module AiRuleCacheSizeProfile
       c["FORMAT_#{fmt.upcase}"] += 1
       c[st.size <= SMALL_YAML ? 'ALL_LE_1M' : 'ALL_GT_1M'] += 1
       c['ALL_GT_4M'] += 1 if st.size > 4 * 1024 * 1024
-      c['ALL_GT_8M'] += 1 if st.size > MAX_FILE
       c[st.size <= SMALL_YAML ? 'YAML_LE_1M' : 'YAML_GT_1M'] += 1 if fmt == 'yaml'
     end
     ['SIZE_FORMAT_CLASSIFIED', c]
