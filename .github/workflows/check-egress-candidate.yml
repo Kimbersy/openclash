@@ -46,6 +46,8 @@ on:
       - tests/test_ai_two_cache_static_readonly.rb
       - scripts/ai_live_rule_provider_readonly.rb
       - tests/test_ai_live_rule_provider_readonly.rb
+      - scripts/ai_controller_socket_diagnostic_readonly.rb
+      - tests/test_ai_controller_socket_diagnostic_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -155,6 +157,8 @@ on:
       - tests/test_ai_two_cache_static_readonly.rb
       - scripts/ai_live_rule_provider_readonly.rb
       - tests/test_ai_live_rule_provider_readonly.rb
+      - scripts/ai_controller_socket_diagnostic_readonly.rb
+      - tests/test_ai_controller_socket_diagnostic_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -396,6 +400,10 @@ jobs:
         run: |
           ruby -c scripts/ai_geo_flags_only_readonly.rb
           ruby tests/test_ai_geo_flags_only_readonly.rb
+      - name: Existing controller socket ownership no-HTTP anonymous diagnostic
+        run: |
+          ruby -c scripts/ai_controller_socket_diagnostic_readonly.rb
+          ruby tests/test_ai_controller_socket_diagnostic_readonly.rb
       - name: Real-running-core rule-provider GET-only anonymous registration and rule-count census
         run: |
           ruby -c scripts/ai_live_rule_provider_readonly.rb
