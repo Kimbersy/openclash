@@ -29,7 +29,9 @@ class TestActualCoreVersionOnly < Minitest::Test
         [bad_cmd, 'HOLD_VERSION_FORMAT_UNRECOGNIZED', nil],
         [':', 'HOLD_VERSION_EMPTY_OUTPUT', nil],
       ].each do |cmd, expected_decision, expected_version|
-        result = V.version_probe(['/bin/sh', '-c', cmd])
+        # Mirror production's `exec /proc/PID/exe -v 2>&1`: redirect
+        # the entire child command's stderr into the captured stdout pipe.
+        result = V.version_probe(['/bin/sh', '-c', "{ #{cmd}; } 2>&1"])
         assert_equal [expected_decision, expected_version], result
         refute_includes result.inspect, 'PRIVATE_TOKEN_NOT_TO_PRINT'
       end
