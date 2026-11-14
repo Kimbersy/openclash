@@ -82,7 +82,7 @@ def plan_full_ai_region_refresh(
     def hold(reason: str) -> dict[str, object]:
         return {
             "public": {
-                "decision": reason, "all_sources_covered": False,
+                "decision": reason, "caller_claimed_inline_source_coverage": False,
                 "qualified_group_count": 0, "qualified_leaf_count": 0,
                 "live_apply": False, "switch": False, "non_ai_mutation": False,
             },
@@ -210,7 +210,7 @@ def plan_full_ai_region_refresh(
         "decision": ("OFFLINE_CANDIDATE_ONLY"
                      if full_pools[(SHARED_SERVICE, "GLOBAL")]
                      else "OFFLINE_SERVICE_POOLS_ONLY_NO_SHARED_AI"),
-        "all_sources_covered": True,  # ONLY within caller-verified inline-only snapshot
+        "caller_claimed_inline_source_coverage": True,  # NOT independently attested here
         "source_total": len(wanted),
         "source_added": metrics["added"],
         "source_removed": metrics["removed"],
