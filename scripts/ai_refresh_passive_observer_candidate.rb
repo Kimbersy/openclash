@@ -77,6 +77,7 @@ module AiRefreshPassiveObserverCandidate
     identity,config=core
     src=stat_key(source,20_000_000)
     runtime=stat_key(config,20_000_000)
+    return nil if File.lstat(LOG).symlink?
     log=stat_key(LOG,50_000_000)
     boot=File.binread('/proc/sys/kernel/random/boot_id',128).strip
     return nil unless src && runtime && log && boot.match?(/\A[0-9a-f-]{36}\z/)
@@ -189,12 +190,14 @@ module AiRefreshPassiveObserverCandidate
     stopped=false
     old_int=trap('INT'){stopped=true}
     old_term=trap('TERM'){stopped=true}
+    old_hup=trap('HUP'){stopped=true}
     puts 'PASSIVE_OBSERVER=START NO_HTTP=YES PRODUCTION_READ_ONLY=YES'
     baseline=snapshot
     unless baseline
       report('HOLD_INITIAL_SNAPSHOT_UNAVAILABLE')
       return
     end
+    puts 'BASELINE_SNAPSHOT=AVAILABLE ONLY_METADATA=YES'
     start=Process.clock_gettime(Process::CLOCK_MONOTONIC)
     last=baseline
     hint='NONE'
@@ -202,6 +205,7 @@ module AiRefreshPassiveObserverCandidate
     seen=false
     while !stopped && Process.clock_gettime(Process::CLOCK_MONOTONIC)-start<duration
       sleep interval
+      break if stopped
       current=snapshot
       unless current
         report('HOLD_SAMPLE_UNAVAILABLE')
@@ -227,6 +231,7 @@ module AiRefreshPassiveObserverCandidate
   ensure
     trap('INT',old_int) if defined?(old_int) && old_int
     trap('TERM',old_term) if defined?(old_term) && old_term
+    trap('HUP',old_hup) if defined?(old_hup) && old_hup
     lock&.close
   end
 end
