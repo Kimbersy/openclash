@@ -18,12 +18,14 @@ APP_HOSTS = {
     "gemini": frozenset(("gemini.google.com",)),
     "notebooklm": frozenset(("notebook.google.com", "notebooklm.google.com")),
 }
+# Keep all business gate check names aligned with qualified_pool:
+# synthetic browser route checks must not be silently skipped by pool builder.
 CHECKS = {
-    "chatgpt": ("signed_in", "prompt_answered", "stream_completed"),
-    "gemini": ("signed_in", "prompt_answered"),
+    "chatgpt": ("signed_in", "prompt_answered", "stream_completed", "route_consistent"),
+    "gemini": ("signed_in", "prompt_answered", "route_consistent"),
     "notebooklm": (
         "signed_in", "workspace_opened", "source_imported",
-        "question_answered", "citation_checked",
+        "question_answered", "citation_checked", "route_consistent",
     ),
 }
 STAGES = {
