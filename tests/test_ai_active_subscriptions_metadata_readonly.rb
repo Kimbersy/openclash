@@ -77,6 +77,68 @@ class AiActiveSubscriptionsMetadataReadOnlyTests < Minitest::Test
     assert_equal 1,m['UCI_ORPHAN_OPTION_BUCKETS']
   end
 
+  def test_39_legitimate_non_subscription_option_buckets_not_orphan
+    # Reproduces the 22:47 device pattern without exposing real UCI values.
+    uci = sample
+    13.times do |i|
+      sid = "non_sub_#{i}"
+      uci += "openclash.#{sid}=groups\n"
+      uci += "openclash.#{sid}.enabled='1'\n"
+      uci += "openclash.#{sid}.enable='0'\n"
+      uci += "openclash.#{sid}.address='https://PRIVATE_#{i}:TOKEN@invalid.example'\n"
+    end
+    m,result=G.parse_uci(uci)
+    assert_equal 'UCI_ENABLED_SOURCE_METADATA_CLASSIFIED',result
+    assert_equal 3,m['UCI_SUBSCRIPTION_SECTION_COUNT']
+    assert_equal 2,m['UCI_EXPLICIT_ENABLED_COUNT']
+    assert_equal 0,m['UCI_ORPHAN_OPTION_BUCKETS']
+    assert_equal 39,m['UCI_NON_SUBSCRIBE_OPTION_BUCKETS_SKIPPED']
+    assert_equal 0,m['UCI_ENABLE_FLAG_UNKNOWN_COUNT']
+    assert_equal 'DAILY',m['UCI_UPDATE_CADENCE']
+    refute_includes m.inspect,'PRIVATE_'
+    refute_includes m.inspect,'TOKEN'
+  end
+
+  def test_real_one_enabled_plus_39_non_subscriptions_can_classify
+    uci="openclash.config=openclash\n"+
+      "openclash.config.config_path='/etc/openclash/config/x.yaml'\n"+
+      "openclash.config.auto_update='1'\n"+
+      "openclash.config.config_auto_update_mode='0'\n"+
+      "openclash.config.config_update_week_time='*'\n"+
+      "openclash.@config_subscribe[0]=config_subscribe\n"+
+      "openclash.@config_subscribe[0].enabled='1'\n"+
+      "openclash.@config_subscribe[0].address='https://SECRET.invalid'\n"
+    39.times do |i|
+      uci+="openclash.rule#{i}=rule\n"
+      uci+="openclash.rule#{i}.enabled='1'\n"
+    end
+    m,result=G.parse_uci(uci)
+    assert_equal 'UCI_ENABLED_SOURCE_METADATA_CLASSIFIED',result
+    assert_equal 1,m['UCI_SUBSCRIPTION_SECTION_COUNT']
+    assert_equal 1,m['UCI_EXPLICIT_ENABLED_COUNT']
+    assert_equal 0,m['UCI_ORPHAN_OPTION_BUCKETS']
+    assert_equal 39,m['UCI_NON_SUBSCRIBE_OPTION_BUCKETS_SKIPPED']
+    assert_equal 'ENABLED',m['UCI_AUTO_UPDATE']
+    assert_equal 'DAILY',m['UCI_UPDATE_CADENCE']
+  end
+
+  def test_real_undeclared_option_remains_orphan_even_with_other_section
+    uci=sample+
+      "openclash.other=groups\nopenclash.other.enabled='1'\n"+
+      "openclash.undeclared.enabled='1'\n"
+    m,result=G.parse_uci(uci)
+    assert_equal 'HOLD_UCI_SUBSCRIPTION_STATUS_AMBIGUOUS',result
+    assert_equal 1,m['UCI_ORPHAN_OPTION_BUCKETS']
+    assert_equal 1,m['UCI_NON_SUBSCRIBE_OPTION_BUCKETS_SKIPPED']
+  end
+
+  def test_mixed_section_type_declaration_conflict_fails_closed
+    uci="openclash.cfg1=config_subscribe\nopenclash.cfg1=groups\n"
+    assert_equal 'HOLD_SECTION_TYPE_CONFLICT',G.parse_uci(uci).last
+    uci="openclash.cfg1=groups\nopenclash.cfg1=config_subscribe\n"
+    assert_equal 'HOLD_SECTION_TYPE_CONFLICT',G.parse_uci(uci).last
+  end
+
   def test_loop_cadence_weekly_and_auto_update_disabled
     s=sample.sub("config_auto_update_mode='0'","config_auto_update_mode='1'").
       sub("config_update_week_time='*'","config_update_interval='45'")
@@ -103,6 +165,8 @@ class AiActiveSubscriptionsMetadataReadOnlyTests < Minitest::Test
     assert_equal [],code.scan(/^require ['"][^'"]+['"]$/)
     assert_includes code,"'uci','-q','show','openclash'"
     assert_includes code,'HTTP=NOT_REQUESTED'
+    assert_includes code,'UCI_NON_SUBSCRIBE_OPTION_BUCKETS_SKIPPED'
+    assert_includes code,"section_type == 'config_subscribe'"
     assert_includes code,'ENABLED_SUBSCRIPTION_MERGE_PROVENANCE=NOT_VERIFIED'
     assert_includes code,'REMOTE_SUBSCRIPTION_REFRESH_SUCCESS=NOT_VERIFIED'
     assert_includes code,'SUBSCRIPTION_NAMES_URLS_AND_SECRETS=NOT_EMITTED'
