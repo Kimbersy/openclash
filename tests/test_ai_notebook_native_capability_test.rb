@@ -37,6 +37,20 @@ class AiNotebookNativeCapabilityTests < Minitest::Test
       Dir.rmdir(dir) if dir
     end
   end
+  def test_temp_cleanup_removes_only_own_synthetic_fixture_and_cache
+    dir=M.temporary_dir
+    refute_nil dir
+    File.write("#{dir}/synthetic.yaml", M.synthetic_yaml)
+    Dir.mkdir("#{dir}/cache", 0700)
+    File.write("#{dir}/cache/fake.db", 'test')
+    File.symlink('/etc/passwd', "#{dir}/cache/symlink-not-followed")
+    assert M.cleanup_private_dir(dir)
+    refute File.exist?(dir)
+    assert File.exist?('/etc/passwd')
+    refute M.cleanup_private_dir('/etc')
+    refute M.cleanup_private_dir('/tmp')
+  end
+
   def test_device_script_is_dependency_free_and_does_not_use_real_config_for_test
     text=File.read(File.expand_path('../scripts/ai_notebook_native_capability_test.rb',__dir__))
     refute_match(/^\s*require(?:_relative)?\s/,text)
