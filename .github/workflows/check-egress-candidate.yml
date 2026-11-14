@@ -57,6 +57,8 @@ on:
       - scripts/ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_refresh_unattended_control_candidate.rb
+      - scripts/ai_unattended_schedule_capability_readonly.rb
+      - tests/test_ai_unattended_schedule_capability_readonly.rb
       - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
@@ -179,6 +181,8 @@ on:
       - scripts/ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_refresh_passive_observer_candidate.rb
       - tests/test_ai_refresh_unattended_control_candidate.rb
+      - scripts/ai_unattended_schedule_capability_readonly.rb
+      - tests/test_ai_unattended_schedule_capability_readonly.rb
       - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
@@ -430,6 +434,10 @@ jobs:
         run: |
           ruby -c scripts/ai_refresh_observer_runtime_preflight_readonly.rb
           ruby tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
+      - name: Single-shot no-fork update hour and Ruby method availability runtime preflight
+        run: |
+          ruby -c scripts/ai_unattended_schedule_capability_readonly.rb
+          ruby tests/test_ai_unattended_schedule_capability_readonly.rb
       - name: Detached passive observer candidate private receipt and PID-verified stop fail closed
         run: |
           ruby tests/test_ai_refresh_unattended_control_candidate.rb
