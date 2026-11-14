@@ -106,6 +106,21 @@ class AiFlowRoutingAcceptance(unittest.TestCase):
         self.assertEqual(self.check(receipt)["decision"],
                          "HOLD_LOGIN_ROUTE_NOT_CAPTURED")
 
+    def test_malformed_or_http_blocking_browser_receipts_do_not_qualify(self):
+        for patch, status in (
+            ({"redirect_state": "unknown"}, "HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP"),
+            ({"http_code": 403}, "HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP"),
+            ({"http_code": 429}, "HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP"),
+            ({"network_error": True}, "HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP"),
+            ({"login_redirect_observed": "yes"}, "HOLD_INVALID_BROWSER_FLAGS"),
+        ):
+            receipt = record("notebooklm")
+            receipt.update(patch)
+            self.assertEqual(self.check(receipt)["decision"], status)
+        receipt = record("notebooklm")
+        receipt["routes"][-1]["host"] = "auth.openai.com"
+        self.assertEqual(self.check(receipt)["decision"], "HOLD_UNEXPECTED_AUTH_HOST")
+
     def test_http_200_untrusted_automation_stale_time_and_wrong_node_hold(self):
         changes = (
             ({"http_only": True}, "HOLD_HTTP_ONLY_OR_UNTRUSTED_METHOD"),
