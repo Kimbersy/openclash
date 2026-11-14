@@ -20,10 +20,17 @@ from ai_refresh_transition_gate import decide_refresh
 from reconcile_subscription import validate_manifest
 
 SHARED_SERVICE = "shared_all_services"  # Existing AI parent shares a single node.
+# Same-exit flags must come from the authorized browser workflow plus
+# router-side connection observation, not from HTTP 200 or node naming.
+# In particular, NotebookLM source import alone does not verify working
+# source-grounded responses / citations.
 WORKFLOW_TASKS = {
-    "chatgpt": ("signed_in", "prompt_answered", "stream_completed"),
-    "gemini": ("signed_in", "prompt_answered"),
-    "notebooklm": ("workspace_opened", "source_imported", "question_answered"),
+    "chatgpt": ("signed_in", "prompt_answered", "stream_completed", "route_consistent"),
+    "gemini": ("signed_in", "prompt_answered", "route_consistent"),
+    "notebooklm": (
+        "signed_in", "workspace_opened", "source_imported",
+        "question_answered", "citation_checked", "route_consistent",
+    ),
 }
 NETWORK_TARGETS = frozenset(("dns", "tcp", "tls", "http"))
 GATE_OK = frozenset(("KEEP_CURRENT_AI_CATALOG", "PLAN_INCREMENTAL_AI_ONLY"))
