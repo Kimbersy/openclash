@@ -2,6 +2,8 @@
 
 > **状态：外部公开来源确认试用按钮的目标URL + 轻量纯Ruby/curl实现与CI合成回归PASS；未通过用户家中节点正负样本校准、未安装或接入自动订阅调度，不可据此授予业务合格。** 用户强调最小能耗、尽量只使用现有Ping/订阅URL，并同意若不够则按已有方案继续。
 
+> **2026-11-14 11:12 用户补充真实经验（优先适用）**：NotebookLM不支持的当前代理节点**即使能正常访问Google、YouTube**，点击`notebook.google`上的“试用 Gemini Notebook”**也直接进入`location=unsupported`，不会先进入Google登录流程**；在已观察的支持节点上，点击后先走`notebook.google.com/?icid=...`、必要时Google登录、随后进入正常工作台。因此`location=unsupported`是该次CTA测试明确受限信号；**登录链路或icid都是值得后续验证的积极分支，但都不等于已完成Notebook业务**。此行为来自用户真实Chrome观察，**还不是路由器自动GET在两条完整指纹节点上的对照回执**；不能把一次无登录态GET的积极分支单独升格为`BUSINESS_VERIFIED`。本轮已将Ruby工具的原`LIGHT_LOGIN_REQUIRED_UNKNOWN`调整为`LIGHT_LOGIN_PATH_CANDIDATE_UNVERIFIED`，保留`unsupported`重定向优先级，防止普通Google/YouTube可访问假阳性，源码及测试固定[Git `78bf69c`](https://github.com/Kimbersy/openclash/commit/78bf69c01af5aeb41c62f377b27fe2db13f3b801)。
+
 ## 一、用户目标与低能耗选型
 
 - 最终路由器P0不缩水：现有所有启用且实际加载的机场节点自动发现；ChatGPT/Gemini/NotebookLM服务独立资格；全部真实合格节点入相应地区和全球池；原OpenClash成功订阅更新后增量维护；AI-only稳态选择和故障接替。Android/iOS智能P1；已有三端GitHub订阅转换、Worker与所有非AI规则不变。
@@ -16,7 +18,7 @@
 2. **常规低负载**：Mihomo原生按需/低频基础健康（可配置lazy、interval、timeout）；对正在用的AI主线和少量热备适当多测，冷备只按预算轮转，所有真正合格节点仍保留。
 3. **NotebookLM轻量预筛**：只对通过基础网络检查且需要复核的节点，走该节点的独立、本地、已有/隔离的HTTP代理入口执行一次**GET**`https://notebook.google.com/?icid=home_maincta`；不用浏览器、不生成Cookie、不上传来源、不带Google登录态。只记录匿名结果：
    - `LIGHT_UNSUPPORTED_OBSERVED`：此次真实HTTPS重定向链明确见`location=unsupported` → **入口被阻断，不入自动可用池**，将账号/地区/出口等归因保留UNKNOWN，未来允许复检；
-   - `LIGHT_LOGIN_REQUIRED_UNKNOWN`：跳Google登录 → **未能断定平台是否允许该节点**；
+   - `LIGHT_LOGIN_PATH_CANDIDATE_UNVERIFIED`：试用入口HTTPS请求跳Google登录，**符合用户实测的支持节点积极分支**，可进入下一轮验证；但必须经真实正负节点GET对照校准，不等于已证明能够登录/导入来源；
    - `LIGHT_APP_HTTP_CANDIDATE_UNVERIFIED`：GET落到Notebook个人应用域名且HTTP200 → **只做后续业务测试候选**，不能单独升级`BUSINESS_VERIFIED`；
    - `LIGHT_MARKETING_ONLY`/其他超时、403、429、异常、未审核跳转 → UNKNOWN/类别保持。
 4. **最终资格**：三服务分别须有实际登录与功能回执。NotebookLM至少真实工作区、非敏感来源导入、基于来源问答/引用核对和同一AI出口；即使GET成功也不能免除这道人工/授权实测门。在未经授权和设备实证前全部保持`BUSINESS=UNKNOWN`。HTTP无法低成本完成私人Google账号业务，因此“永远只靠Ping和订阅URL就得到全部真实合格节点”不可实现。
