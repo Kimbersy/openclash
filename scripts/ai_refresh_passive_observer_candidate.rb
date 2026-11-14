@@ -263,9 +263,11 @@ module AiRefreshPassiveObserverCandidate
     rescue StandardError
       return 'HOLD_PID_UNAVAILABLE'
     end
-    return 'HOLD_PID_IDENTITY_MISMATCH' unless pid_start(s[:pid])==s[:start] &&
-      pid_cmd_matches?(s[:pid],s[:duration],s[:interval])
+    return 'HOLD_PID_IDENTITY_MISMATCH' unless pid_start(s[:pid])==s[:start]
+    # A zombie has no meaningful /proc/PID/cmdline; after verifying its
+    # immutable boot+start ticks it is safe to report EXITED, never signal.
     return 'EXITED' if pid_process_state(s[:pid])=='Z'
+    return 'HOLD_PID_IDENTITY_MISMATCH' unless pid_cmd_matches?(s[:pid],s[:duration],s[:interval])
     'RUNNING'
   end
 
