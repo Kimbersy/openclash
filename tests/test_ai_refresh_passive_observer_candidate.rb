@@ -194,6 +194,13 @@ class AiRefreshPassiveObserverCandidateTests < Minitest::Test
     assert_includes s,'MAX_SECONDS = 86_400'
     assert_includes s,"ARGV[0]=='--probe'"
     assert_includes s,'def merge_hint(old, current)'
-    refute_match(/Net::HTTP|curl|wget|https?:\/\/|Process\.spawn|system\(|\.write\(|PUT \/proxies/,s)
+    # Only the separately gated unattended controller may write 0600
+    # /tmp session metadata, never source/core/production config contents.
+    refute_match(/Net::HTTP|curl|wget|https?:\/\/|Process\.spawn|system\(|PUT \/proxies/,s)
+    assert_includes s,'state.write(payload)'
+    assert_includes s,'SESSION_STATE ='
+    assert_includes s,'SESSION_RECEIPT ='
+    assert_includes s,'File::NOFOLLOW'
+    refute_match(/File\.(?:write|binwrite)\(|File\.open\((?:ROOT|LOG)\b|CONFIG_FILE.*\.write\(/,s)
   end
 end
