@@ -10,8 +10,8 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from ai_three_service_browser_flow_gate import APP_HOSTS, CHECKS, GOOGLE_LOGIN, check_browser_workflow_receipt
-from ai_service_stability_dry_run import business_verified
+from ai_three_service_browser_flow_gate import APP_HOSTS, CHECKS, GOOGLE_LOGIN, GEMINI_API_HOSTS, check_browser_workflow_receipt
+from ai_service_stability_dry_run import WORKFLOW_TASKS, business_verified
 
 NOW = datetime(2026, 11, 14, 2, 0, tzinfo=timezone.utc)
 FP = "b" * 64
@@ -52,6 +52,36 @@ class AiFlowRoutingAcceptance(unittest.TestCase):
         self.assertNotIn(SESSION, repr(result))
         self.assertNotIn(FP, repr(result))
         return result
+
+    def test_real_pool_requirements_never_weaker_than_real_browser_checklist(self):
+        # Otherwise a synthetic browser gate might reject an incomplete NotebookLM
+        # workflow while the global/region pool still admits that same node.
+        self.assertEqual(set(WORKFLOW_TASKS), set(CHECKS))
+        for service in WORKFLOW_TASKS:
+            self.assertEqual(set(WORKFLOW_TASKS[service]), set(CHECKS[service]))
+            self.assertIn("route_consistent", WORKFLOW_TASKS[service])
+        self.assertIn("citation_checked", WORKFLOW_TASKS["notebooklm"])
+        self.assertIn("signed_in", WORKFLOW_TASKS["notebooklm"])
+
+    def test_gemini_actual_published_exact_api_hosts_do_not_false_fail(self):
+        # Browser answer often uses Gemini's dedicated backends, not just
+        # gemini.google.com; never expand public Google suffix routing to fix.
+        for host in GEMINI_API_HOSTS:
+            receipt = record("gemini")
+            receipt["routes"][1]["host"] = host
+            r = self.check(receipt, "gemini")
+            self.assertEqual(r["decision"], "ROUTING_AND_WORKFLOW_RECEIPT_CANDIDATE_ONLY")
+        receipt = record("gemini")
+        receipt["routes"][1]["host"] = "unreviewed-shared.googleapis.com"
+        self.assertEqual(self.check(receipt, "gemini")["decision"],
+                         "HOLD_UNREVIEWED_DEPENDENCY")
+
+    def test_missing_same_exit_claim_blocks_even_if_route_rows_are_green(self):
+        for service in ("chatgpt", "gemini", "notebooklm"):
+            receipt = record(service)
+            receipt["checks"].pop("route_consistent")
+            self.assertEqual(self.check(receipt, service)["decision"],
+                             "HOLD_INCOMPLETE_REAL_BUSINESS_WORKFLOW")
 
     def test_all_three_complete_synthetic_flows_still_not_business_verified(self):
         for service in ("chatgpt", "gemini", "notebooklm"):
