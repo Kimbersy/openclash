@@ -57,6 +57,57 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
     assert_equal 'HOLD_RUNTIME_LEAF_MISMATCH',status
     assert_equal 1,counters['API_UNACCOUNTED_GROUP']
   end
+  def test_official_pass_rule_preset_extra_is_classified_by_name_and_type
+    s = snapshot
+    response = api
+    response['proxies']['PASS-RULE'] = {'type'=>'PassRule'}
+    counts, status = G.compare_snapshot(s,response)
+    assert_equal 'LIVE_LEAF_NAME_COVERAGE_PASS',status
+    assert_equal 58,counts['API_EXPECTED_LEAF_PRESENT']
+    assert_equal 0,counts['API_EXPECTED_LEAF_MISSING']
+    assert_equal 0,counts['API_EXTRA_UNTRUSTED_LEAF']
+    assert_equal 1,counts['API_EXTRA_PRESET_MATCHED']
+    assert_equal 0,counts['API_EXTRA_PRESET_TYPE_MISMATCH']
+    refute_includes counts.inspect,'PASS-RULE'
+  end
+
+  def test_preset_name_with_real_proxy_type_is_not_silently_whitelisted
+    s = snapshot
+    response = api
+    response['proxies']['PASS-RULE'] = {'type'=>'Trojan','server'=>'SENSITIVE'}
+    counts, status = G.compare_snapshot(s,response)
+    assert_equal 'HOLD_RUNTIME_LEAF_MISMATCH',status
+    assert_equal 1,counts['API_EXTRA_PRESET_TYPE_MISMATCH']
+    assert_equal 1,counts['API_EXTRA_UNTRUSTED_LEAF']
+    refute_includes counts.inspect,'SENSITIVE'
+  end
+
+  def test_special_unknown_type_or_unlisted_name_stays_on_hold
+    s = snapshot
+    response = api
+    response['proxies']['SECRET_EXTRA'] = {'type'=>'PassRule'}
+    counts, status = G.compare_snapshot(s,response)
+    assert_equal 'HOLD_RUNTIME_LEAF_MISMATCH',status
+    assert_equal 1,counts['API_EXTRA_SPECIAL_TYPE_UNCLASSIFIED']
+    assert_equal 1,counts['API_EXTRA_UNTRUSTED_LEAF']
+    refute_includes counts.inspect,'SECRET_EXTRA'
+    response = api
+    response['proxies']['SECRET_EXTRA'] = {'type'=>'Trojan'}
+    counts, status = G.compare_snapshot(s,response)
+    assert_equal 'HOLD_RUNTIME_LEAF_MISMATCH',status
+    assert_equal 1,counts['API_EXTRA_OTHER_UNCLASSIFIED']
+    assert_equal 1,counts['API_EXTRA_UNTRUSTED_LEAF']
+  end
+
+  def test_reserved_preset_names_cannot_collide_with_user_groups_or_leaves
+    source = cfg
+    source['proxy-groups'][0]['name']='PASS-RULE'
+    assert_equal 'HOLD_NAME_COLLISION',G.expected_leaf_snapshot(source).last
+    source = cfg
+    source['proxies'][0]['name']='PASS-RULE'
+    assert_equal 'HOLD_NAME_COLLISION',G.expected_leaf_snapshot(source).last
+  end
+
   def test_name_collision_and_proxy_provider_mode_hold_closed
     source=cfg
     source['proxies'][1]['name']='node0'
@@ -148,6 +199,8 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
     assert_includes source,'ENABLED_SUBSCRIPTION_SOURCE_COVERAGE=NOT_VERIFIED'
     assert_includes source,'PRODUCTION_CONFIG=UNCHANGED PROVIDER_REFRESH=NOT_RUN'
     assert_includes source,'AUTO_SWITCH=OFF'
+    assert_includes source,"'PASS-RULE' => 'PassRule'"
+    assert_includes source,'API_EXTRA_PRESET_TYPE_MISMATCH'
     refute_includes source,'/proxies/node0'
   end
 end
