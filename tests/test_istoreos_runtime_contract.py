@@ -20,12 +20,13 @@ GEO_FLAGS_ONLY = ROOT / "scripts/ai_geo_flags_only_readonly.rb"
 CACHE_BYTECOPY = ROOT / "scripts/ai_rule_cache_byte_copy_gate.rb"
 CACHE_STRUCTURE = ROOT / "scripts/ai_rule_cache_structure_readonly.rb"
 CACHE_SIZE_PROFILE = ROOT / "scripts/ai_rule_cache_size_profile_readonly.rb"
+TWO_CACHE_STATIC = ROOT / "scripts/ai_two_cache_static_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC}
 DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
@@ -47,6 +48,10 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertNotRegex(source, r"""(?m)^\s*require_relative\b""")
             self.assertNotRegex(source, r"\bTimeout\s*\.")
             self.assertNotRegex(source, r"""(?m)^\s*require\s+['"]timeout['"]""")
+            if path == TWO_CACHE_STATIC:
+                self.assertIn("NETWORK_ISOLATION=NOT_PROVEN", source)
+                self.assertIn("MRS_BINARY_CONTENT=NOT_PARSED", source)
+                self.assertNotIn("Process.spawn", source)
             if path == CACHE_SIZE_PROFILE:
                 self.assertIn("CACHE_CONTENT=NOT_READ", source)
                 self.assertIn("NETWORK_ISOLATION=NOT_PROVEN", source)
@@ -81,7 +86,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE):
+            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC):
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -109,6 +114,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("ai_rule_cache_byte_copy_gate.rb", workflow)
         self.assertIn("ai_rule_cache_structure_readonly.rb", workflow)
         self.assertIn("ai_rule_cache_size_profile_readonly.rb", workflow)
+        self.assertIn("ai_two_cache_static_readonly.rb", workflow)
 
 
 if __name__ == "__main__":
