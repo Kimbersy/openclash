@@ -12,6 +12,7 @@ module AiRuleCacheStructureReadOnly
   CORE_ROOT = '/etc/openclash/core/'
   MAX_CONFIG = 20_000_000
   MAX_FILE = 8 * 1024 * 1024
+  MAX_YAML_PARSE = 1 * 1024 * 1024  # cap Psych memory pressure on tiny router
   MAX_TOTAL = 48 * 1024 * 1024
   MAX_PROVIDERS = 2000
   MAX_PAYLOAD = 250_000
@@ -61,6 +62,7 @@ module AiRuleCacheStructureReadOnly
       return 'HOLD_FILE_ENCODING' unless bytes.force_encoding('UTF-8').valid_encoding? &&
         !bytes.include?("\0")
       if fmt == 'yaml'
+        return 'HOLD_YAML_MEMORY_BUDGET' if bytes.bytesize > MAX_YAML_PARSE
         yaml = Psych.safe_load(bytes, aliases: false)
         return 'HOLD_YAML_LAYOUT' unless yaml.is_a?(Hash) &&
           yaml['payload'].is_a?(Array) && yaml['payload'].size.between?(1, MAX_PAYLOAD) &&
