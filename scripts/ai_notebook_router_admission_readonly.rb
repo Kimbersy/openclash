@@ -5,7 +5,7 @@
 # controller PUT, router restart, second core, or subscription refresh.
 # NEVER print config paths, process argv, URLs, secrets, proxy names or IPs.
 require 'psych'
-require 'timeout'
+# iStoreOS Ruby-core has no bundled timeout.rb; use core IO.select instead.
 
 # Keep this file self-contained for a ONE-FILE iStoreOS read-only invocation.
 # Reuse the proven active-core identity rules from ai_live_membership_readonly.
@@ -83,16 +83,54 @@ module AiNotebookRouterAdmission
     matches.size == 1 ? matches.first : nil
   end
 
+  def version_from_command(executable, seconds: 3.0)
+    # Ruby core only: no 'timeout' gem/std-lib on stock iStoreOS. Nonblocking
+    # read with a monotonic 3s deadline, then terminate/reap ONLY the spawned
+    # '-v' child. Never kill or signal the running Mihomo service PID.
+    output = +''
+    pipe = nil
+    begin
+      pipe = IO.popen([executable, '-v'], err: File::NULL)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds
+      loop do
+        left = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        break if left <= 0 || output.bytesize >= 4096
+        break unless IO.select([pipe], nil, nil, left)
+        begin
+          chunk = pipe.read_nonblock([512, 4097 - output.bytesize].min)
+          output << chunk
+          break if output.include?("\n")
+        rescue IO::WaitReadable
+          next
+        rescue EOFError
+          break
+        end
+      end
+      version_from_output(output)
+    rescue StandardError
+      nil
+    ensure
+      if pipe
+        begin
+          Process.kill('KILL', pipe.pid)
+        rescue Errno::ESRCH, Errno::ECHILD
+          # Child exited on its own.
+        end
+        begin
+          pipe.close
+        rescue IOError, Errno::ECHILD
+          # Already closed/reaped by the runtime.
+        end
+      end
+    end
+  end
+
   def installed_version(pid)
     exe = File.readlink("/proc/#{pid}/exe")
     return nil unless exe.start_with?(CORE_ROOT)
-    # This is the installed executable's -v read-only metadata, not a
-    # download/upgrade. Bounded to 3 seconds and at most 4KiB of output.
-    raw = Timeout.timeout(3) do
-      IO.popen(["/proc/#{pid}/exe", '-v'], err: File::NULL) { |io| io.read(4097) }
-    end
-    version_from_output(raw)
-  rescue StandardError, Timeout::Error
+    # Read-only installed-core metadata, NOT an OpenClash updater version.
+    version_from_command("/proc/#{pid}/exe")
+  rescue StandardError
     nil
   end
 
