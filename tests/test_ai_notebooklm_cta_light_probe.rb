@@ -30,13 +30,30 @@ class NotebookCtaLightweightTest < Minitest::Test
     )
   end
 
-  def test_login_redirect_is_unknown_even_after_cta_get
-    # In an unauthenticated external fetch of the observed CTA URL, Google
-    # may redirect here. This is not a confirmed geo-compatible node.
-    assert_equal 'LIGHT_LOGIN_REQUIRED_UNKNOWN', classify(
+  def test_login_redirect_is_preflight_positive_not_full_business
+    # User observes unsupported exits branch to location=unsupported before
+    # login. Google login after CTA is a PROMISING first-stage observation,
+    # not a signed-in workspace proof; requires real node-pair calibration.
+    result = classify(
       final: 'https://accounts.google.com/ServiceLogin?continue=redacted',
       locations: ['https://accounts.google.com/ServiceLogin?continue=redacted']
     )
+    assert_equal 'LIGHT_LOGIN_PATH_CANDIDATE_UNVERIFIED', result
+    refute_equal 'BUSINESS_VERIFIED', result
+  end
+
+  def test_unsupported_on_intermediate_hop_outvotes_final_login
+    assert_equal 'LIGHT_UNSUPPORTED_OBSERVED', classify(
+      final: 'https://accounts.google.com/ServiceLogin?continue=redacted',
+      locations: ['https://notebook.google/?location=unsupported',
+                  'https://accounts.google.com/ServiceLogin?continue=redacted']
+    )
+  end
+
+  def test_google_and_youtube_connectivity_is_not_notebook_eligibility
+    ['https://www.google.com/', 'https://www.youtube.com/'].each do |url|
+      assert_equal 'LIGHT_UNKNOWN_UNREVIEWED_REDIRECT', classify(final: url)
+    end
   end
 
   def test_marketing_200_does_not_pass
