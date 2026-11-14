@@ -114,18 +114,23 @@ module AiRuntimeLeafNamesReadOnly
     nil
   end
 
+  def proc_starttime(stat)
+    return nil unless stat.is_a?(String)
+    close = stat.rindex(')')
+    return nil unless close
+    # Linux /proc/PID/stat fields 3 onward begin after closing "(comm)".
+    # starttime is field 22, which is the 20th field of this suffix.
+    value = stat[(close + 1)..-1].split[19]
+    value if value && value.match?(/\A[0-9]+\z/)
+  end
+
   def core_process_identity(pid)
     exe = File.readlink("/proc/#{pid}/exe")
     return nil unless exe.start_with?(CORE_ROOT)
     ns = File.readlink("/proc/#{pid}/ns/net")
     raw = File.binread("/proc/#{pid}/stat", 8192)
-    close = raw.rindex(')')
-    return nil unless close
-    # After "(comm)" fields start with state (Linux stat field 3);
-    # field 22 / starttime is zero-based index 19 in this suffix.
-    fields = raw[(close + 1)..-1].split
-    starttime = fields[19]
-    return nil unless starttime && starttime.match?(/\A[0-9]+\z/)
+    starttime = proc_starttime(raw)
+    return nil unless starttime
     [exe, ns, starttime]
   rescue StandardError
     nil
