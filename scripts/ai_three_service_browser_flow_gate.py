@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import re
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 APP_HOSTS = {
     "chatgpt": frozenset(("chatgpt.com",)),
@@ -51,6 +52,59 @@ GEMINI_API_HOSTS = frozenset((
 ))
 GOOGLE_LOGIN = "accounts.google.com"
 LANDING_ONLY = frozenset(("notebook.google", "notebooklm.google"))
+
+
+def classify_notebooklm_trial_click(
+    *, browser_url: Any, trial_button_clicked: bool,
+) -> dict[str, object]:
+    """Stage-1 USER-OBSERVED trial button outcome, without revealing URLs.
+
+    The CTA transition to notebook.google.com/?icid=... is the positive
+    branch described in the 10:34 screenshot. Its icid is an attribution
+    value, NOT a notebook ID or independent proof of a loaded workspace.
+    Unsupported is a negative observation for THAT browser/exit/session,
+    not a lifetime ban for a node. Passive curl never clicks the CTA.
+    """
+
+    def verdict(decision: str, continue_business_test: bool = False) -> dict[str, object]:
+        return {
+            "decision": decision,
+            "continue_business_test": continue_business_test,
+            "business_verified": False, "allow_switch": False,
+            "live_writes": False,
+        }
+
+    if type(trial_button_clicked) is not bool:
+        return verdict("HOLD_UNVERIFIED_CLICK_CONTEXT")
+    if not isinstance(browser_url, str) or not 0 < len(browser_url) <= 2048:
+        return verdict("HOLD_MALFORMED_BROWSER_URL")
+    try:
+        parsed = urlsplit(browser_url)
+        if (parsed.scheme != "https" or parsed.username is not None
+                or parsed.password is not None or parsed.port is not None):
+            return verdict("HOLD_MALFORMED_BROWSER_URL")
+        host = (parsed.hostname or "").lower()
+        parameters = parse_qs(parsed.query, keep_blank_values=True)
+    except ValueError:
+        return verdict("HOLD_MALFORMED_BROWSER_URL")
+
+    app_hosts = APP_HOSTS["notebooklm"]
+    if host not in app_hosts | LANDING_ONLY:
+        return verdict("HOLD_UNREVIEWED_REDIRECT_HOST")
+    if any(x.lower() == "unsupported" for x in parameters.get("location", [])) or parsed.path.rstrip("/").lower().endswith("/unsupported"):
+        if trial_button_clicked:
+            return verdict("NOTEBOOK_UNSUPPORTED_AFTER_TRIAL_CLICK")
+        return verdict("HOLD_UNVERIFIED_CLICK_CONTEXT")
+    if host in LANDING_ONLY:
+        return verdict("NOTEBOOK_MARKETING_PAGE_ONLY")
+    if not trial_button_clicked:
+        return verdict("HOLD_UNVERIFIED_CLICK_CONTEXT")
+    icid = parameters.get("icid", [])
+    if host in app_hosts and any(0 < len(value) <= 128 for value in icid):
+        return verdict("NOTEBOOK_CTA_APP_TRANSITION_CANDIDATE", True)
+    if parsed.path.startswith("/notebook/"):
+        return verdict("NOTEBOOK_WORKSPACE_URL_CANDIDATE", True)
+    return verdict("HOLD_TRIAL_CLICK_UNRESOLVED")
 
 
 def check_browser_workflow_receipt(
