@@ -6,7 +6,9 @@
 # NEVER print config paths, process argv, URLs, secrets, proxy names or IPs.
 require 'psych'
 require 'timeout'
-require_relative 'ai_live_membership_readonly'
+
+# Keep this file self-contained for a ONE-FILE iStoreOS read-only invocation.
+# Reuse the proven active-core identity rules from ai_live_membership_readonly.
 
 module AiNotebookRouterAdmission
   module_function
@@ -48,6 +50,37 @@ module AiNotebookRouterAdmission
     return nil unless raw.is_a?(String) && raw.bytesize <= 4096
     match = raw.match(/\b(v?\d{1,3}\.\d{1,3}\.\d{1,3})\b/i)
     match && match[1].delete_prefix('v')
+  end
+
+  def cmd_flag(argv, flag)
+    index = argv.index(flag)
+    return argv[index + 1] if index && index + 1 < argv.length
+    argv.find { |value| value.start_with?(flag + '=') }&.split('=', 2)&.last
+  end
+
+  def candidate_core
+    matches = []
+    Dir['/proc/[0-9]*/cmdline'].each do |file|
+      begin
+        pid = file.split('/')[2]
+        exe = File.readlink("/proc/#{pid}/exe")
+        next unless exe.start_with?(CORE_ROOT)
+        argv = File.binread(file).split("\0")
+        next if argv.any? { |value|
+          value.include?('/tmp/openclash-ai-') ||
+            value.include?('/tmp/openclash-probe-') ||
+            value.include?('/tmp/oc-ai-')
+        }
+        cwd = File.readlink("/proc/#{pid}/cwd")
+        dir = File.expand_path(cmd_flag(argv, '-d') || cwd, cwd)
+        path = File.expand_path(cmd_flag(argv, '-f') || 'config.yaml', dir)
+        next unless File.file?(path) && File.size(path).between?(1, 20_000_000)
+        matches << [pid, path]
+      rescue StandardError
+        next
+      end
+    end
+    matches.size == 1 ? matches.first : nil
   end
 
   def installed_version(pid)
@@ -116,13 +149,13 @@ module AiNotebookRouterAdmission
 
   def run
     puts 'NOTEBOOK_ROUTER_ADMISSION=START READ_ONLY=YES'
-    core = AiLiveMembership.candidate_core
+    core = candidate_core
     unless core
       puts 'CORE_PROCESS=NOT_UNIQUELY_IDENTIFIED'
       puts 'ADMISSION=HOLD_CORE_UNAVAILABLE PRODUCTION_WRITES=NONE'
       return 0
     end
-    pid, _argv, path = core
+    pid, path = core
     version = installed_version(pid)
     ports = read_tcp
     config_status = begin
