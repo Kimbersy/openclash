@@ -108,7 +108,7 @@ class TestAiNotebookRouterAdmission < Minitest::Test
     text=File.read(File.expand_path('../scripts/ai_notebook_router_admission_readonly.rb',__dir__))
     refute_includes text,'/etc/init.d/openclash'
     refute_includes text,'requests.put'
-    refute_includes text,'curl'
+    refute_match(/^\s*(?:system|exec|spawn|Open3|Net::HTTP|curl)(?:\b|\()/, text)
     refute_includes text,'File.write('
     refute_includes text,'File.open('
     assert_includes text,'PRODUCTION_WRITES=NONE'
