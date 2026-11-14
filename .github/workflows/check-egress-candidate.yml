@@ -24,6 +24,7 @@ on:
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
+      - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
       - tests/test_ai_three_service_browser_flow_gate.py
@@ -101,6 +102,7 @@ on:
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
+      - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
       - tests/test_ai_three_service_browser_flow_gate.py
@@ -308,6 +310,20 @@ jobs:
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
         run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
+      - name: Native Mihomo v1.19.34 parser validates synthetic one-core loopback listener
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ai-probe-native
+          curl -fLsS --retry 2 --connect-timeout 10 --max-time 120 \
+            -o /tmp/ai-probe-native/mihomo.gz \
+            https://github.com/MetaCubeX/mihomo/releases/download/v1.19.34/mihomo-linux-amd64-compatible-v1.19.34.gz
+          printf '%s  %s\n' \
+            '2763f5b414527f7baf6dc57e3f82f3ab561eedf34bfd7c2f2cde1f7e592efe06' \
+            /tmp/ai-probe-native/mihomo.gz | sha256sum -c -
+          gzip -dc /tmp/ai-probe-native/mihomo.gz > /tmp/ai-probe-native/mihomo
+          chmod 700 /tmp/ai-probe-native/mihomo
+          python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
+          /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
       - name: One-core native loopback Notebook probing entrance and zero-non-AI-change tests
         run: |
           python -m py_compile scripts/ai_notebook_one_core_probe_candidate.py
