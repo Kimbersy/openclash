@@ -31,7 +31,10 @@ module AiActiveSubscriptionsMetadataReadOnly
       match = /\Aopenclash\.([A-Za-z0-9_@\[\]-]+)=([A-Za-z0-9_-]+)\z/.match(line)
       next unless match
       section_id, section_type = match.captures
-      return [nil,'HOLD_SECTION_TYPE_CONFLICT'] if section_types.key?(section_id)
+      if section_types.key?(section_id)
+        duplicate_sub = section_types[section_id] == 'SUBSCRIPTION' && section_type == 'config_subscribe'
+        return [nil, duplicate_sub ? 'HOLD_DUPLICATE_SOURCE_SECTION' : 'HOLD_SECTION_TYPE_CONFLICT']
+      end
       return [nil,'HOLD_UCI_SECTION_LIMIT'] if section_types.length >= 10_000
       section_types[section_id] = (section_type == 'config_subscribe' ? 'SUBSCRIPTION' : 'OTHER')
       next unless section_type == 'config_subscribe'
