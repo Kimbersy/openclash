@@ -78,6 +78,65 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
     assert_equal 1,counters['API_EXPECTED_AS_GROUP']
     assert_equal 1,counters['API_EXPECTED_LEAF_MISSING']
   end
+  def test_transient_unrelated_fd_close_does_not_fake_owner_changed
+    fd_paths=%w[/proc/fake/10 /proc/fake/11 /proc/fake/12 /proc/fake/13]
+    reader=lambda do |fd|
+      case fd
+      when '/proc/fake/10' then 'socket:[123456]'
+      when '/proc/fake/11' then raise Errno::ENOENT
+      when '/proc/fake/12' then raise Errno::EBADF
+      else 'socket:[9999]'
+      end
+    end
+    sockets=G.match_listener_fds(fd_paths,['123456'],reader)
+    assert_equal({'123456'=>true},sockets)
+    assert_equal 'IPV6_WILDCARD_IPV4_CANDIDATE',
+      G.owner_class_from_rows([], [['IPV6_WILDCARD','123456']],sockets).first
+  end
+
+  def test_closed_listener_fd_never_counts_as_owned
+    reader=lambda { |_path| raise Errno::ENOENT }
+    sockets=G.match_listener_fds(['/proc/fake/10'], ['123456'], reader)
+    assert_equal({},sockets)
+    assert_nil G.owner_class_from_rows([], [['IPV6_WILDCARD','123456']],sockets)
+  end
+
+  def test_socket_inode_replacement_requires_fail_closed_recheck
+    old_owner=G.owner_class_from_rows([], [['IPV6_WILDCARD','123456']],{'123456'=>true})
+    new_owner=G.owner_class_from_rows([], [['IPV6_WILDCARD','654321']],{'654321'=>true})
+    refute_equal old_owner,new_owner
+    assert_nil G.owner_class_from_rows([], [['IPV6_OTHER','123456']],{'123456'=>true})
+    assert_nil G.owner_class_from_rows([], [['IPV6_WILDCARD','654321']],{'123456'=>true})
+  end
+
+  def test_unexpected_fd_errors_are_not_ignored_and_budgets_fail_closed
+    reader=lambda { |_path| raise Errno::EACCES }
+    assert_nil G.match_listener_fds(['/proc/fake/10'],['123456'],reader)
+    assert_nil G.match_listener_fds([],['123456'],reader)
+    assert_nil G.match_listener_fds(['/proc/fake/10'],[],reader)
+    assert_nil G.match_listener_fds(['/proc/fake/10'],['invalid'],reader)
+  end
+
+  def test_linux_proc_starttime_parse_handles_spaces_and_missing_field
+    prefix=Array.new(19,'1').join(' ')
+    stat="123 (mihomo process (testing)) S #{prefix} 432109 99"
+    # S is field 3; nineteen numeric values cover fields 4..22.
+    assert_equal '1',G.proc_starttime(stat)
+    assert_nil G.proc_starttime('not a proc stat')
+    assert_nil G.proc_starttime('55 (mihomo) S 1 2')
+    assert_nil G.proc_starttime('')
+  end
+
+  def test_post_get_checks_separate_process_change_vs_fd_unavailable
+    script=File.binread(File.join(__dir__,'../scripts/ai_runtime_leaf_inventory_readonly.rb'))
+    assert_includes script,'HOLD_CORE_PROCESS_CHANGED'
+    assert_includes script,'HOLD_CONTROLLER_OWNER_RECHECK_UNAVAILABLE'
+    assert_includes script,'HOLD_CONTROLLER_OWNER_CHANGED'
+    assert_includes script,'identity_before == core_process_identity(pid)'
+    assert_includes script,'evidence == evidence_after'
+    assert_includes script,'File.readlink("/proc/#{pid}/exe")'
+  end
+
   def test_controller_is_same_verified_ipv4_only_path_and_no_secrets_printed
     source=File.binread(File.join(__dir__,'../scripts/ai_runtime_leaf_inventory_readonly.rb'))
     assert_equal ["require 'psych'"],source.scan(/^require ['"][^'"]+['"]$/)
