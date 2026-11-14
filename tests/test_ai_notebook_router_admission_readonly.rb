@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require 'minitest/autorun'
+require 'tmpdir'
 require_relative '../scripts/ai_notebook_router_admission_readonly'
 
 class TestAiNotebookRouterAdmission < Minitest::Test
@@ -102,6 +103,32 @@ class TestAiNotebookRouterAdmission < Minitest::Test
     cfg=fixture
     cfg['listeners']=[{'name'=>'old','port'=>'BAD:5678'}]
     assert_equal 'HOLD_UNVERIFIED_LISTENER',A.config_assessment(cfg)
+  end
+
+
+  def test_iStoreos_ruby_core_only_version_probe_and_bounded_process_cleanup
+    # Device receipt 2026-11-14 13:55: require 'timeout' raised LoadError
+    # before ANY admission checks ran. Avoid optional standard library entirely.
+    script = File.read(File.expand_path('../scripts/ai_notebook_router_admission_readonly.rb', __dir__))
+    refute_match(/^\s*require\s+['"]timeout['"]/, script)
+    assert_includes script, 'IO.select'
+    assert_includes script, 'read_nonblock'
+    assert_includes script, 'Process.clock_gettime'
+    Dir.mktmpdir('synthetic-mihomo-version-') do |dir|
+      fast = File.join(dir, 'fast')
+      File.write(fast, "#!/bin/sh\nprintf 'Mihomo Meta v1.19.34 linux amd64\\n'\n")
+      File.chmod(0700, fast)
+      assert_equal '1.19.34', A.version_from_command(fast, seconds: 0.6)
+
+      # 'exec' ensures the stalled child itself is the process we kill.
+      hung = File.join(dir, 'hung')
+      File.write(hung, "#!/bin/sh\nexec sleep 2\n")
+      File.chmod(0700, hung)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      assert_nil A.version_from_command(hung, seconds: 0.15)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+      assert_operator elapsed, :<, 1.5, 'a stalled child must not hang TTYD'
+    end
   end
 
   def test_no_live_network_or_router_config_mutators_in_admission_script
