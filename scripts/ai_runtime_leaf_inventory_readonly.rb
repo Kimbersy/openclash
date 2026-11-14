@@ -205,6 +205,7 @@ module AiRuntimeLeafNamesReadOnly
       api['proxies'].is_a?(Hash)
     expected = snapshot['leaves'] + snapshot['groups']
     counts = {'API_EXTRA_PRESET_MATCHED' => 0,
+              'API_PASS_RULE_PRESET' => 0,
               'API_EXTRA_PRESET_TYPE_MISMATCH' => 0,
               'API_EXTRA_SPECIAL_TYPE_UNCLASSIFIED' => 0,
               'API_EXTRA_OTHER_UNCLASSIFIED' => 0}
@@ -214,6 +215,7 @@ module AiRuntimeLeafNamesReadOnly
       if BUILTIN_NAME_TYPE.key?(n)
         if type == BUILTIN_NAME_TYPE[n]
           counts['API_EXTRA_PRESET_MATCHED'] += 1
+          counts['API_PASS_RULE_PRESET'] += 1 if n == 'PASS-RULE'
         else
           counts['API_EXTRA_PRESET_TYPE_MISMATCH'] += 1
         end
