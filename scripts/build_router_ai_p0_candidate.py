@@ -116,6 +116,7 @@ def build_router_p0_candidate(
     for item in pool[:MAX_BACKUPS]:
         node = actual[item["name"]]
         if (node.get("type") in (None, "select", "url-test", "fallback", "DIRECT", "REJECT")
+                or item["name"] in names
                 or item["name"] in ("DIRECT", "REJECT", "COMPATIBLE", "GLOBAL")):
             return hold("HOLD_NOT_A_DIRECT_LEAF", len(pool))
         selected.append(item["name"])
