@@ -80,7 +80,7 @@ module AiRefreshPassiveObserverCandidate
     log=stat_key(LOG,50_000_000)
     boot=File.binread('/proc/sys/kernel/random/boot_id',128).strip
     return nil unless src && runtime && log && boot.match?(/\A[0-9a-f-]{36}\z/)
-    return nil unless single_live_core&.first == identity
+    return nil unless single_live_core == core
     {boot:boot,core:identity,source:src,runtime:runtime,log:log}
   rescue StandardError
     nil
@@ -90,14 +90,21 @@ module AiRefreshPassiveObserverCandidate
     a,b=before[:log],after[:log]
     return 'LOG_GAP' unless a && b && a[0..1] == b[0..1] && b[2]>=a[2]
     delta=b[2]-a[2]
-    return 'NONE' if delta == 0
+    # Same size but changed timestamp means in-place rewrite/truncate+append.
+    # Ordinary appended log at size==old must retain ALL metadata unchanged.
+    if delta == 0
+      return a == b ? 'NONE' : 'LOG_GAP'
+    end
     return 'LOG_GAP' if delta>MAX_DELTA
+    # Never follow a replaced log symlink; paths and raw log stay private.
+    return 'LOG_GAP' if File.lstat(path).symlink?
     raw=File.open(path,'rb') do |f|
       st=f.stat
       return 'LOG_GAP' unless [st.dev,st.ino,st.size] == b[0..2]
       f.seek(a[2])
       f.read(delta)
     end
+    return 'LOG_GAP' unless raw && raw.end_with?("\n")
     types=[]
     raw.to_s.each_line do |line|
       next unless line.start_with?('20') && line.include?('Config File')
@@ -109,6 +116,17 @@ module AiRefreshPassiveObserverCandidate
     types.uniq.length>1 ? 'LOG_EVENTS_MIXED' : (types.first || 'NONE')
   rescue StandardError
     'LOG_GAP'
+  end
+
+  def merge_hint(old, current)
+    # Safety-relevant gaps/errors are sticky. A later "success" log does not
+    # repair an earlier unreadable or failed update interval.
+    return 'LOG_GAP' if [old,current].include?('LOG_GAP')
+    return 'ERROR_REPORTED' if [old,current].include?('ERROR_REPORTED')
+    return 'LOG_EVENTS_MIXED' if [old,current].include?('LOG_EVENTS_MIXED')
+    return old if current == 'NONE'
+    return current if old == 'NONE'
+    old == current ? old : 'LOG_EVENTS_MIXED'
   end
 
   def classify(before,after,hint,stable_samples:2)
@@ -142,6 +160,12 @@ module AiRefreshPassiveObserverCandidate
     puts 'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
     puts 'PRIVATE_URLS_PATHS_NODES_AND_LOG_LINES=NOT_EMITTED'
     puts 'PRODUCTION_CONFIG=UNCHANGED PROVIDER_REFRESH=NOT_RUN LISTENER_INSTALLED=NO AUTO_SWITCH=OFF'
+  end
+
+  def probe
+    puts 'PASSIVE_OBSERVER=SNAPSHOT_PROBE ONCE=YES NO_HTTP=YES'
+    data = snapshot
+    report(data ? 'BASELINE_SNAPSHOT_AVAILABLE_ONLY' : 'HOLD_INITIAL_SNAPSHOT_UNAVAILABLE')
   end
 
   def run(duration:3600,interval:60)
@@ -184,7 +208,7 @@ module AiRefreshPassiveObserverCandidate
         return
       end
       new_hint=log_hint(last,current)
-      hint=new_hint if new_hint!='NONE'
+      hint=merge_hint(hint,new_hint)
       changed=[:source,:runtime,:core].any? { |key| baseline[key]!=current[key] }
       if changed || hint!='NONE'
         seen=true
@@ -209,7 +233,9 @@ end
 
 if __FILE__==$PROGRAM_NAME
   # Default to disarmed: downloading/executing this file alone never watches.
-  if ARGV.length==3 && ARGV[0]=='--observe' &&
+  if ARGV.length==1 && ARGV[0]=='--probe'
+    AiRefreshPassiveObserverCandidate.probe
+  elsif ARGV.length==3 && ARGV[0]=='--observe' &&
     ARGV[1].match?(/\A\d+\z/) && ARGV[2].match?(/\A\d+\z/)
     AiRefreshPassiveObserverCandidate.run(duration:ARGV[1].to_i,interval:ARGV[2].to_i)
   else
