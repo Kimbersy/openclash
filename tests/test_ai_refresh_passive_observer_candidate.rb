@@ -99,6 +99,56 @@ class AiRefreshPassiveObserverCandidateTests < Minitest::Test
     end
   end
 
+  def test_log_errors_and_gaps_are_sticky_and_never_overwritten_by_success
+    assert_equal 'ERROR_REPORTED', G.merge_hint('ERROR_REPORTED','SUCCESS_REPORTED')
+    assert_equal 'LOG_GAP', G.merge_hint('SUCCESS_REPORTED','LOG_GAP')
+    assert_equal 'LOG_GAP', G.merge_hint('LOG_GAP','SUCCESS_REPORTED')
+    assert_equal 'LOG_EVENTS_MIXED', G.merge_hint('SUCCESS_REPORTED','NO_CHANGE_REPORTED')
+    assert_equal 'NO_CHANGE_REPORTED', G.merge_hint('NO_CHANGE_REPORTED','NONE')
+    assert_equal 'ERROR_REPORTED', G.merge_hint('LOG_EVENTS_MIXED','ERROR_REPORTED')
+    assert_equal 'HOLD_LOG_ERROR_HINT', G.classify(snapshot,changed,
+      G.merge_hint('ERROR_REPORTED','SUCCESS_REPORTED'))
+  end
+
+  def test_same_size_log_rewrite_is_not_silent
+    Dir.mktmpdir do |d|
+      file=File.join(d,'log')
+      File.binwrite(file,"SAME_LENGTH\n")
+      base=G.stat_key(file,20_000)
+      later=base.dup
+      later[3]+=1 # changed mtime without a detectable byte-count change
+      before={log:base}
+      after={log:later}
+      assert_equal 'LOG_GAP',G.log_hint(before,after,file)
+      assert_equal 'NONE',G.log_hint(before,before,file)
+      File.binwrite(file,"SHORT")
+      now={log:G.stat_key(file,20_000)}
+      assert_equal 'LOG_GAP',G.log_hint(before,now,file)
+    end
+  end
+
+  def test_partial_appended_log_is_a_gap_not_authenticated_line
+    Dir.mktmpdir do |d|
+      file=File.join(d,'log')
+      File.binwrite(file,"FIRST\n")
+      a={log:G.stat_key(file,20_000)}
+      File.open(file,'ab'){|f|f.write("2026-11-14 21:00:00 [Info] Config File SECRET Update Successful!")}
+      b={log:G.stat_key(file,20_000)}
+      assert_equal 'LOG_GAP',G.log_hint(a,b,file)
+    end
+  end
+
+  def test_single_snapshot_probe_is_disarmed_no_observer_loop
+    cmd=File.expand_path('../scripts/ai_refresh_passive_observer_candidate.rb',__dir__)
+    out=IO.popen(['ruby',cmd,'--probe'],err:File::NULL,&:read)
+    assert_includes out,'PASSIVE_OBSERVER=SNAPSHOT_PROBE ONCE=YES NO_HTTP=YES'
+    assert_match(/PASSIVE_OBSERVER_RESULT=(BASELINE_SNAPSHOT_AVAILABLE_ONLY|HOLD_INITIAL_SNAPSHOT_UNAVAILABLE)/,out)
+    assert_includes out,'TRUSTED_REMOTE_COMMIT=NOT_VERIFIED'
+    assert_includes out,'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
+    assert_includes out,'LISTENER_INSTALLED=NO AUTO_SWITCH=OFF'
+    refute_match(/https?:\/\/|SECRET_AIRPORT/,out)
+  end
+
   def test_flock_second_instance_is_rejected_before_sampling
     lock=File.open(G::LOCK,File::RDWR|File::CREAT,0600)
     assert lock.flock(File::LOCK_EX|File::LOCK_NB)
@@ -138,6 +188,8 @@ class AiRefreshPassiveObserverCandidateTests < Minitest::Test
     assert_includes s,"trap('TERM')"
     assert_includes s,"Process::CLOCK_MONOTONIC"
     assert_includes s,'MAX_SECONDS = 86_400'
+    assert_includes s,"ARGV[0]=='--probe'"
+    assert_includes s,'def merge_hint(old, current)'
     refute_match(/Net::HTTP|curl|wget|https?:\/\/|Process\.spawn|system\(|\.write\(|PUT \/proxies/,s)
   end
 end
