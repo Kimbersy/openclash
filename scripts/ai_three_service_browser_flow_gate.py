@@ -61,6 +61,13 @@ def check_browser_workflow_receipt(
     # successful personal notebook access; do not infer a specific cause.
     if receipt.get("redirect_state") in ("location=unsupported", "marketing_landing", "access_denied"):
         return stop("HOLD_NOTEBOOK_ACCESS_GATE_OR_LANDING")
+    if receipt.get("redirect_state") != "app" or receipt.get("http_code") in (403, 429, 451):
+        return stop("HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP")
+    if receipt.get("network_error") is True:
+        return stop("HOLD_UNVERIFIED_OR_FAILED_BROWSER_APP")
+    if (type(receipt.get("login_redirect_observed")) is not bool
+            or type(receipt.get("http_only")) is not bool):
+        return stop("HOLD_INVALID_BROWSER_FLAGS")
     if receipt.get("http_only") is True or receipt.get("method") != "user_interactive_workflow":
         return stop("HOLD_HTTP_ONLY_OR_UNTRUSTED_METHOD")
     if receipt.get("service") != service or receipt.get("node_fingerprint") != expected_node_fp:
@@ -100,7 +107,9 @@ def check_browser_workflow_receipt(
                 or event.get("exit_consistent") is not True):
             return stop("HOLD_SPLIT_EGRESS_OR_NON_AI_ROUTE")
         if stage == "auth":
-            if host not in (GOOGLE_LOGIN, "auth.openai.com", "chatgpt.com"):
+            allowed_auth = ((GOOGLE_LOGIN, "auth.openai.com", "chatgpt.com")
+                            if service == "chatgpt" else (GOOGLE_LOGIN,))
+            if host not in allowed_auth:
                 return stop("HOLD_UNEXPECTED_AUTH_HOST")
             auth_seen = True
         elif stage == "app":
