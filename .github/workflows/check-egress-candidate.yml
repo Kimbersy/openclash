@@ -30,6 +30,8 @@ on:
       - scripts/ai_real_config_private_copy_native_gate.rb
       - scripts/ai_rule_provider_inventory_readonly.rb
       - scripts/ai_ruleset_cached_offline_overlay.py
+      - scripts/ai_geo_flags_only_readonly.rb
+      - tests/test_ai_geo_flags_only_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -123,6 +125,8 @@ on:
       - scripts/ai_real_config_private_copy_native_gate.rb
       - scripts/ai_rule_provider_inventory_readonly.rb
       - scripts/ai_ruleset_cached_offline_overlay.py
+      - scripts/ai_geo_flags_only_readonly.rb
+      - tests/test_ai_geo_flags_only_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -360,6 +364,10 @@ jobs:
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/private-overlay.yaml
           python tests/make_ai_cached_ruleset_native_fixture.py /tmp/ai-probe-native/cached-20
           /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native/cached-20 -f /tmp/ai-probe-native/cached-20/config.yaml
+      - name: Geo dat-mode versus auto-update versus custom-url limited read-only checks
+        run: |
+          ruby -c scripts/ai_geo_flags_only_readonly.rb
+          ruby tests/test_ai_geo_flags_only_readonly.rb
       - name: Cached HTTP rule providers private-file overlay offline tests
         run: |
           python -m py_compile scripts/ai_ruleset_cached_offline_overlay.py
