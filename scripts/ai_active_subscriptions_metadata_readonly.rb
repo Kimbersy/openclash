@@ -21,25 +21,48 @@ module AiActiveSubscriptionsMetadataReadOnly
   def parse_uci(text)
     return [nil,'HOLD_UCI_SIZE'] unless text.is_a?(String) &&
       text.bytesize.between?(1,MAX_UCI_BYTES)
+    # UCI is a package, not a subscription-only database. Other sections
+    # legitimately have .enabled, .enable or .address options, including
+    # dozens of rules/groups. Determine section TYPES before classifying.
     sections = {}
-    options = Hash.new { |h,k| h[k]=[] }
-    orphan = 0
+    section_types = {}
     text.each_line do |raw|
       line = raw.strip
-      if (m = /\Aopenclash\.([A-Za-z0-9_@\[\]-]+)=config_subscribe\z/.match(line))
-        return [nil,'HOLD_SOURCE_SECTION_LIMIT'] if sections.length >= MAX_SUBSCRIPTION_SECTIONS
-        return [nil,'HOLD_DUPLICATE_SOURCE_SECTION'] if sections.key?(m[1])
-        sections[m[1]] = true
-      elsif (m = /\Aopenclash\.([A-Za-z0-9_@\[\]-]+)\.(enabled|enable|address)=(.*)\z/.match(line))
-        # Store only an *exact* 0/1 state or abstract address presence.
-        # Never retain or echo source addresses, aliases, secrets or options.
+      match = /\Aopenclash\.([A-Za-z0-9_@\[\]-]+)=([A-Za-z0-9_-]+)\z/.match(line)
+      next unless match
+      section_id, section_type = match.captures
+      return [nil,'HOLD_SECTION_TYPE_CONFLICT'] if section_types.key?(section_id)
+      return [nil,'HOLD_UCI_SECTION_LIMIT'] if section_types.length >= 10_000
+      section_types[section_id] = (section_type == 'config_subscribe' ? 'SUBSCRIPTION' : 'OTHER')
+      next unless section_type == 'config_subscribe'
+      return [nil,'HOLD_SOURCE_SECTION_LIMIT'] if sections.length >= MAX_SUBSCRIPTION_SECTIONS
+      sections[section_id] = true
+    end
+
+    # Store ONLY tiny normalized metadata of confirmed subscribe sections,
+    # not UCI addresses/URL contents, names, tokens or proxy parameters.
+    # Undeclared section options remain suspicious; known non-subscribe types
+    # are ignored as out-of-scope, not counted as orphan subscriptions.
+    options = Hash.new { |h,k| h[k] = [] }
+    non_subscribe_buckets = {}
+    undeclared_buckets = {}
+    text.each_line do |raw|
+      line = raw.strip
+      if (m = /\Aopenclash\.([A-Za-z0-9_@\[\]-]+)\.(enabled|enable|address)=(.*)\z/.match(line))
         section, key, value = m.captures
-        if key == 'address'
-          present = value == "''" || value.empty? ? 'EMPTY' : 'SET'
-          options[[section,'address']] << present
+        case section_types[section]
+        when 'SUBSCRIPTION'
+          if key == 'address'
+            present = value.empty? || value == "''" || value == '""' ? 'EMPTY' : 'SET'
+            options[[section,'address']] << present
+          else
+            stripped = value.sub(/\A'/,'').sub(/'\z/,'')
+            options[[section,key]] << (stripped.match?(/\A[01]\z/) ? stripped : 'UNKNOWN')
+          end
+        when 'OTHER'
+          non_subscribe_buckets[[section,key]] = true
         else
-          stripped = value.sub(/\A'/,'').sub(/'\z/,'')
-          options[[section,key]] << (stripped.match?(/\A[01]\z/) ? stripped : 'UNKNOWN')
+          undeclared_buckets[[section,key]] = true
         end
       elsif (m = /\Aopenclash\.config\.(auto_update|config_auto_update_mode|config_update_week_time|config_update_interval|config_path)=(.*)\z/.match(line))
         key,value = m.captures
@@ -71,7 +94,7 @@ module AiActiveSubscriptionsMetadataReadOnly
       else unknown += 1
       end
     end
-    orphan = options.keys.count{|sid,_| sid!='config' && !sections.key?(sid)}
+    orphan = undeclared_buckets.length
     update = flag_class(options[['config','auto_update']])
     mode = options[['config','config_auto_update_mode']]
     schedule = if update=='ENABLED' && mode.length==1
@@ -94,6 +117,7 @@ module AiActiveSubscriptionsMetadataReadOnly
       'UCI_ENABLE_FLAG_CONFLICT_COUNT'=>conflict,
       'UCI_ENABLED_ADDRESS_MISSING_COUNT'=>address_missing,
       'UCI_ORPHAN_OPTION_BUCKETS'=>orphan,
+      'UCI_NON_SUBSCRIBE_OPTION_BUCKETS_SKIPPED'=>non_subscribe_buckets.length,
       'UCI_SELECTED_CONFIG_DECLARED'=>options[['config','config_path']]==['SET'] ? 'YES' : 'NO',
       'UCI_AUTO_UPDATE'=>update,
       'UCI_UPDATE_CADENCE'=>schedule
