@@ -106,7 +106,8 @@ def candidate_one_core_probe_listener(config: Any, *, source_identity_verified: 
         return hold("HOLD_PORT_COLLISION")
     # No new polling timers. A private SELECT list containing all leaves does
     # NOT use fallback or background URL tests, so it consumes no test cycles.
-    # REJECT is the default (first) member to avoid accidentally using an exit.
+    # REJECT is first, but saved selector state may override it at runtime.
+    # Actual post-load REJECT selection MUST be verified before any test.
     generated = deepcopy(config)
     generated["proxy-groups"].append({
         "name": GROUP_NAME, "type": "select", "proxies": ["REJECT", *leaf_names],
@@ -121,7 +122,8 @@ def candidate_one_core_probe_listener(config: Any, *, source_identity_verified: 
         "decision": "OFFLINE_ISOLATED_LISTENER_CANDIDATE_ONLY",
         "isolated_listener_count": 1,
         "probe_leaf_count": len(leaf_names),
-        "loopback_only": True, "starts_disabled": True,
+        "loopback_only": True, "default_reject_configured": True,
+        "runtime_reject_verified": False,  # saved selection may override first member
         "actual_device_validated": False,
         "live_writes": False, "controller_put": False, "switch": False,
     }
