@@ -24,6 +24,8 @@ on:
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
+      - scripts/ai_notebook_router_admission_readonly.rb
+      - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
@@ -102,6 +104,8 @@ on:
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
       - scripts/ai_notebook_one_core_probe_candidate.py
+      - scripts/ai_notebook_router_admission_readonly.rb
+      - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
@@ -324,6 +328,10 @@ jobs:
           chmod 700 /tmp/ai-probe-native/mihomo
           python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
           /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
+      - name: Router read-only Notebook preflight checks installed core and port without private logs
+        run: |
+          ruby -c scripts/ai_notebook_router_admission_readonly.rb
+          ruby tests/test_ai_notebook_router_admission_readonly.rb
       - name: One-core native loopback Notebook probing entrance and zero-non-AI-change tests
         run: |
           python -m py_compile scripts/ai_notebook_one_core_probe_candidate.py
