@@ -94,6 +94,43 @@ class TestAiRefreshGate(unittest.TestCase):
         changed_node=MANIFEST | {"node_fingerprints":{"PRIVATE-NODE":"f"*64}}
         self.assertEqual(gate(m=changed_node)["reason"],"LIVE_NODE_IDENTITY_MISMATCH")
 
+    def test_20261114_2257_real_device_evidence_is_not_a_refresh_commit(self):
+        # Confirmed real iStoreOS evidence: one enabled subscription source,
+        # daily schedule, 58/58 source/runtime disk definitions and API names,
+        # 20/20 rule providers. No independently verified NEW update event or
+        # core full-identity snapshot from that same update generation.
+        mock58 = MANIFEST | {
+            "node_count": 58,
+            "node_fingerprints": {f"SYNTHETIC-{i:03d}": f"{i+1:064x}" for i in range(58)},
+        }
+        # This must not be viewed as a real private manifest or upload.
+        observed = {"enabled_sources": 1, "daily_schedule": True,
+                    "source_runtime_disk_full_definitions": 58,
+                    "api_leaf_names_present": 58, "rule_provider_loaded": 20}
+        self.assertEqual(observed["api_leaf_names_present"], 58)
+        self.assertEqual(gate(m=mock58, u=None, v=None)["reason"], "MISSING_UPDATE_EVENT")
+        # OpenClash upstream may log Update Successful directly after mv
+        # without checking its exit status; the log is not an authenticated
+        # committed/validated event.
+        untrusted = UPDATE | {
+            "source": "openclash_update_success_log",
+            "result": "VALIDATED_CHANGED",
+            "validated_download": True,
+            "committed": True,
+        }
+        self.assertEqual(gate(m=mock58, u=untrusted, v=None)["reason"], "UPDATE_NOT_PROVEN")
+        # Even the real /proxies name inventory cannot prove secret-bearing
+        # complete connection definition currently loaded in Mihomo memory.
+        superficial = RUNTIME | {
+            "source": "authenticated_api_names_only",
+            "live_node_identity_digest": catalog_digest(mock58),
+        }
+        trusted_but_unobserved = UPDATE | {"snapshot_sha256": "a"*64}
+        self.assertEqual(
+            gate(m=mock58, u=trusted_but_unobserved, v=superficial)["reason"],
+            "RUNTIME_NOT_PROVEN"
+        )
+
     def test_outputs_do_not_contain_sensitive_identifiers(self):
         for result in [gate(),gate(u=UPDATE | {"snapshot_sha256":"SECRET PRIVATE URL"})]:
             self.assertNotIn("PRIVATE-NODE",repr(result))
