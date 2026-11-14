@@ -243,6 +243,15 @@ module AiRefreshPassiveObserverCandidate
     f&.close
   end
 
+  def pid_process_state(pid)
+    raw=File.binread("/proc/#{pid}/stat",8192)
+    pos=raw.rindex(')')
+    return nil unless pos
+    raw[(pos+1)..-1].strip.split.first
+  rescue StandardError
+    nil
+  end
+
   def state_liveness(s)
     return 'ABSENT' if s==:absent
     return 'HOLD_STATE_UNTRUSTED' unless s.is_a?(Hash)
@@ -256,6 +265,7 @@ module AiRefreshPassiveObserverCandidate
     end
     return 'HOLD_PID_IDENTITY_MISMATCH' unless pid_start(s[:pid])==s[:start] &&
       pid_cmd_matches?(s[:pid],s[:duration],s[:interval])
+    return 'EXITED' if pid_process_state(s[:pid])=='Z'
     'RUNNING'
   end
 
