@@ -169,6 +169,273 @@ module AiRefreshPassiveObserverCandidate
     report(data ? 'BASELINE_SNAPSHOT_AVAILABLE_ONLY' : 'HOLD_INITIAL_SNAPSHOT_UNAVAILABLE')
   end
 
+  # Unattended mode is a candidate only. No operator approval or target
+  # Process.fork/setsid proof exists yet; never invoke --detach on production.
+  SESSION_CONTROL = '/tmp/ai_refresh_passive_control.lock'
+  SESSION_STATE = '/tmp/ai_refresh_passive_session.state'
+  SESSION_RECEIPT = '/tmp/ai_refresh_passive_session.receipt'
+  RECEIPT_MAX = 8192
+
+  def private_open(path, flags, create: false)
+    f = File.open(path, flags | File::NOFOLLOW, 0600)
+    st = f.stat
+    raise 'unsafe private file' unless st.file? && st.nlink == 1 &&
+      st.uid == Process.uid && (st.mode & 0o077).zero? && st.size <= RECEIPT_MAX
+    f
+  rescue StandardError
+    f&.close
+    raise
+  end
+
+  def boot_id
+    value=File.binread('/proc/sys/kernel/random/boot_id',128).strip
+    value if value.match?(/\A[0-9a-f-]{36}\z/)
+  rescue StandardError
+    nil
+  end
+
+  def pid_start(pid)
+    return nil unless pid.is_a?(Integer) && pid.positive?
+    core_pid_start(File.binread("/proc/#{pid}/stat",8192))
+  rescue StandardError
+    nil
+  end
+
+  def pid_cmd_matches?(pid, duration, interval)
+    argv=File.binread("/proc/#{pid}/cmdline",4096).split("\0")
+    return false unless argv.include?('--detach')
+    at=argv.index('--detach')
+    argv[at+1]==duration.to_s && argv[at+2]==interval.to_s &&
+      argv.length==at+3 && File.readlink("/proc/#{pid}/exe")==File.readlink('/proc/self/exe')
+  rescue StandardError
+    false
+  end
+
+  def parse_state(data)
+    return nil unless data.is_a?(String) && data.bytesize.between?(1,512)
+    items={}
+    data.each_line do |line|
+      key,value=line.strip.split('=',2)
+      return nil unless %w[PID START BOOT DURATION INTERVAL].include?(key) &&
+        !items.key?(key) && value && !value.empty?
+      items[key]=value
+    end
+    return nil unless items.keys.sort==%w[BOOT DURATION INTERVAL PID START].sort
+    return nil unless %w[PID START DURATION INTERVAL].all?{|k|items[k].match?(/\A[0-9]+\z/)}
+    pid=items['PID'].to_i
+    duration=items['DURATION'].to_i
+    interval=items['INTERVAL'].to_i
+    return nil unless pid.between?(1,4_194_304) &&
+      duration.between?(300,MAX_SECONDS) && interval.between?(30,900) &&
+      duration>=interval*3 && items['BOOT'].match?(/\A[0-9a-f-]{36}\z/)
+    {pid:pid,start:items['START'],boot:items['BOOT'],duration:duration,interval:interval}
+  end
+
+  def read_state
+    f=private_open(SESSION_STATE,File::RDONLY)
+    raw=f.read(513)
+    parse_state(raw)
+  rescue Errno::ENOENT
+    :absent
+  rescue StandardError
+    nil
+  ensure
+    f&.close
+  end
+
+  def state_liveness(s)
+    return 'ABSENT' if s==:absent
+    return 'HOLD_STATE_UNTRUSTED' unless s.is_a?(Hash)
+    return 'HOLD_BOOT_CHANGED' unless boot_id==s[:boot]
+    begin
+      Process.kill(0,s[:pid])
+    rescue Errno::ESRCH
+      return 'EXITED'
+    rescue StandardError
+      return 'HOLD_PID_UNAVAILABLE'
+    end
+    return 'HOLD_PID_IDENTITY_MISMATCH' unless pid_start(s[:pid])==s[:start] &&
+      pid_cmd_matches?(s[:pid],s[:duration],s[:interval])
+    'RUNNING'
+  end
+
+  def receipt_status
+    f=private_open(SESSION_RECEIPT,File::RDONLY)
+    raw=f.read(RECEIPT_MAX+1)
+    return 'HOLD_RECEIPT_OVERSIZED' if raw.bytesize>RECEIPT_MAX
+    names=raw.lines.grep(/\APASSIVE_OBSERVER_RESULT=/)
+    return 'HOLD_RECEIPT_INCOMPLETE' unless names.length==1
+    name=names.first.strip.split('=',2).last
+    return 'HOLD_RECEIPT_INVALID' unless name.match?(/\A(?:HOLD_[A-Z0-9_]+|STOPPED_BY_SIGNAL|PASSIVE_POSTUPDATE_CHRONOLOGY_CANDIDATE_ONLY)\z/)
+    # Only an allowlisted enum escapes into the chat, never raw logs.
+    name
+  rescue Errno::ENOENT
+    'HOLD_RECEIPT_MISSING'
+  rescue StandardError
+    'HOLD_RECEIPT_UNREADABLE'
+  ensure
+    f&.close
+  end
+
+  def with_control_lock
+    lock=private_open(SESSION_CONTROL, File::RDWR|File::CREAT)
+    unless lock.flock(File::LOCK_EX|File::LOCK_NB)
+      puts 'UNATTENDED_CONTROL_RESULT=HOLD_CONTROL_BUSY'
+      return
+    end
+    yield
+  rescue StandardError
+    puts 'UNATTENDED_CONTROL_RESULT=HOLD_CONTROL_UNAVAILABLE'
+  ensure
+    lock&.close
+  end
+
+  def schedule_plan
+    # Upstream config-subscribe.lua defines auto_update_time as an hour 0..23.
+    # No update trigger is called, and its actual execution remains unproven.
+    values={}
+    %w[auto_update config_auto_update_mode config_update_week_time auto_update_time].each do |key|
+      values[key]=IO.popen(['uci','-q','get',"openclash.config.#{key}"],
+                            err:File::NULL){|io|io.read(64).to_s.strip}
+    end
+    status=if values['auto_update']=='1' &&
+      values['config_auto_update_mode']=='0' &&
+      values['config_update_week_time']=='*' &&
+      values['auto_update_time'].match?(/\A(?:[0-9]|1[0-9]|2[0-3])\z/)
+      'DAILY_HOUR_DECLARED_ONLY'
+    else
+      'HOLD_SCHEDULE_UNKNOWN'
+    end
+    puts "SCHEDULE_RESULT=#{status}"
+    puts "UCI_UPDATE_HOUR=#{status=='DAILY_HOUR_DECLARED_ONLY' ? format('%02d',values['auto_update_time'].to_i) : 'UNKNOWN'}"
+    puts 'SCHEDULE_EXECUTION=NOT_VERIFIED TIMEZONE=DEVICE_LOCAL_UNCONFIRMED'
+    puts 'PASSIVE_OBSERVER_INSTALLED=NO UPDATE_TRIGGERED=NO'
+  rescue StandardError
+    puts 'SCHEDULE_RESULT=HOLD_UCI_READ'
+  end
+
+  def unattended_status
+    with_control_lock do
+      s=read_state
+      live=state_liveness(s)
+      puts "UNATTENDED_SESSION=#{live}"
+      puts "UNATTENDED_RECEIPT=#{s==:absent ? 'NOT_PRESENT' : receipt_status}"
+      puts 'TRUSTED_REMOTE_COMMIT=NOT_VERIFIED MIHOMO_MEMORY_CREDENTIALS=NOT_VERIFIED'
+      puts 'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
+    end
+  end
+
+  def unattended_stop
+    with_control_lock do
+      s=read_state
+      live=state_liveness(s)
+      unless live=='RUNNING'
+        puts "UNATTENDED_STOP=#{live == 'EXITED' ? 'ALREADY_EXITED' : 'HOLD_NOT_AUTHENTICATED'}"
+        return
+      end
+      # Re-read identity immediately before sending a non-forceful signal;
+      # never kill by pid alone, and never use KILL/killall.
+      unless state_liveness(s)=='RUNNING'
+        puts 'UNATTENDED_STOP=HOLD_PID_IDENTITY_CHANGED'
+        return
+      end
+      Process.kill('TERM',s[:pid])
+      puts 'UNATTENDED_STOP=TERM_SENT_NOT_CONFIRMED'
+    end
+  rescue StandardError
+    puts 'UNATTENDED_STOP=HOLD_STOP_FAILED'
+  end
+
+  def unattended_cleanup
+    with_control_lock do
+      s=read_state
+      unless state_liveness(s)=='EXITED'
+        puts 'UNATTENDED_CLEANUP=HOLD_SESSION_NOT_PROVEN_EXITED'
+        return
+      end
+      # SESSION_CONTROL lock is intentionally not unlinked.
+      [SESSION_STATE,SESSION_RECEIPT].each do |path|
+        f=private_open(path,File::RDONLY)
+        f.close
+      end
+      [SESSION_STATE,SESSION_RECEIPT].each{|path|File.unlink(path)}
+      puts 'UNATTENDED_CLEANUP=PRIVATE_SESSION_FILES_REMOVED'
+    end
+  rescue StandardError
+    puts 'UNATTENDED_CLEANUP=HOLD_CLEANUP_FAILED'
+  end
+
+  def unattended_detach(duration,interval)
+    unless duration.is_a?(Integer) && duration.between?(300,MAX_SECONDS) &&
+      interval.is_a?(Integer) && interval.between?(30,900) && duration>=interval*3
+      puts 'UNATTENDED_START=HOLD_INVALID_BUDGET'
+      return
+    end
+    with_control_lock do
+      unless read_state==:absent
+        puts 'UNATTENDED_START=HOLD_EXISTING_SESSION_REQUIRES_REVIEW'
+        return
+      end
+      boot=boot_id
+      unless boot && Process.respond_to?(:fork) && Process.respond_to?(:setsid)
+        puts 'UNATTENDED_START=HOLD_DETACH_CAPABILITY_UNKNOWN'
+        return
+      end
+      state=nil
+      output=nil
+      begin
+        output=private_open(SESSION_RECEIPT,File::RDWR|File::CREAT|File::EXCL)
+        state=private_open(SESSION_STATE,File::RDWR|File::CREAT|File::EXCL)
+        read_end,write_end=IO.pipe
+        pid=Process.fork do
+          begin
+            write_end.close
+            ready=read_end.read(1)
+            read_end.close
+            exit!(1) unless ready=='1'
+            Process.setsid
+            $stdin.reopen('/dev/null','r')
+            $stdout.reopen(output)
+            $stderr.reopen('/dev/null','w')
+            state.close
+            run(duration:duration,interval:interval)
+            $stdout.flush
+            exit!(0)
+          rescue StandardError
+            begin
+              $stdout.puts 'PASSIVE_OBSERVER_RESULT=HOLD_DETACHED_CHILD_RUNTIME'
+              $stdout.flush
+            rescue StandardError
+            end
+            exit!(2)
+          end
+        end
+        read_end.close
+        start=pid_start(pid)
+        unless start
+          write_end.close
+          puts 'UNATTENDED_START=HOLD_CHILD_IDENTITY_UNAVAILABLE'
+          return
+        end
+        payload="PID=#{pid}\nSTART=#{start}\nBOOT=#{boot}\nDURATION=#{duration}\nINTERVAL=#{interval}\n"
+        state.write(payload)
+        state.flush
+        state.fsync
+        write_end.write('1')
+        write_end.close
+        puts 'UNATTENDED_START=START_SIGNAL_SENT_UNVERIFIED'
+        puts 'UNATTENDED_SESSION_FILES=PRIVATE_TMP_ONLY'
+      ensure
+        write_end&.close rescue nil
+        read_end&.close rescue nil
+        state&.close
+        output&.close
+      end
+    end
+  rescue StandardError
+    puts 'UNATTENDED_START=HOLD_START_FAILED'
+  end
+
   def run(duration:3600,interval:60)
     unless duration.is_a?(Integer) && duration.between?(90,MAX_SECONDS) &&
       interval.is_a?(Integer) && interval.between?(30,900) && duration>=interval*3
@@ -243,6 +510,19 @@ if __FILE__==$PROGRAM_NAME
   elsif ARGV.length==3 && ARGV[0]=='--observe' &&
     ARGV[1].match?(/\A\d+\z/) && ARGV[2].match?(/\A\d+\z/)
     AiRefreshPassiveObserverCandidate.run(duration:ARGV[1].to_i,interval:ARGV[2].to_i)
+  elsif ARGV==['--schedule']
+    AiRefreshPassiveObserverCandidate.schedule_plan
+  elsif ARGV==['--status']
+    AiRefreshPassiveObserverCandidate.unattended_status
+  elsif ARGV==['--stop']
+    AiRefreshPassiveObserverCandidate.unattended_stop
+  elsif ARGV==['--cleanup']
+    AiRefreshPassiveObserverCandidate.unattended_cleanup
+  elsif ARGV.length==3 && ARGV[0]=='--detach' &&
+    ARGV[1].match?(/\A\d+\z/) && ARGV[2].match?(/\A\d+\z/)
+    # This path remains BLOCKED from router release until explicit approval
+    # and separate device validation of fork/setsid/receipt lifecycle.
+    AiRefreshPassiveObserverCandidate.unattended_detach(ARGV[1].to_i,ARGV[2].to_i)
   else
     AiRefreshPassiveObserverCandidate.report('HOLD_NOT_ARMED')
   end
