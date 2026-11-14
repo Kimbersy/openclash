@@ -215,6 +215,16 @@ class RouterP0CandidateTests(unittest.TestCase):
         self.assertEqual(got, args["config"])
         self.assertEqual(r["status"], "HOLD_GROUP_NAME_COLLISION")
 
+    def test_group_name_and_node_name_ambiguity_does_not_enter_fallback(self):
+        args = example()
+        args["config"]["proxy-groups"].append({
+            "name": "TEST_1", "type": "select", "proxies": ["TEST_0"]
+        })
+        original = deepcopy(args["config"])
+        got, status = build_router_p0_candidate(**args)
+        self.assertEqual(status["status"], "HOLD_NOT_A_DIRECT_LEAF")
+        self.assertEqual(got, original)
+
     def test_same_country_region_lock_is_respected_and_global_not_auto_crossed(self):
         tw, stat = self.build()
         self.assertEqual(tw["proxy-groups"][-1]["proxies"], ["TEST_1", "TEST_0"])
