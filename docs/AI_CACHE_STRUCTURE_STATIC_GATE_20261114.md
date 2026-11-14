@@ -12,11 +12,18 @@
 - 独立[`scripts/ai_rule_cache_structure_readonly.rb`](../scripts/ai_rule_cache_structure_readonly.rb)：**仅依赖iStoreOS实机已加载成功的Ruby`psych`**，只读当前唯一Mihomo运行配置与20份本地规则缓存，限制配置20MiB/缓存单份8MiB/总48MiB；YAML在交给Psych解析前限制到**1MiB**，防止精简路由器大体积YAML解析内存飙升。不会调用Mihomo、网络命令、控制器API、额外核心，也不会创建含规则/私密信息的副本。
 - 明确识别`yaml`的`payload: [字符串]`结构、`text`有效UTF-8非空非注释行与`mrs`二进制；**遇到MRS只记录数量并返回`HOLD_MRS_BINARY_UNPARSED`，不会自称验证MRS**。其它错误提供固定HOLD码：不安全路径、symlink、重复/缺失缓存、格式与行为不匹配、YAML解析失败、内存预算/文件尺寸超额、Geo状态与17:06不同等。
 - 私密规则文本、Provider名称、机场服务器地址、密码、URL均不打印/不上传；只输出匿名`STRUCTURE_RESULT`、`CACHE_YAML_STATIC`、`CACHE_TEXT_STATIC`、`CACHE_MRS_UNPARSED`。**即使`STATIC_STRUCTURE_PASS`也继续输出`MIHOMO_SYNTAX=NOT_VALIDATED NETWORK_ISOLATION=NOT_PROVEN`**；实际`-t`和正式Listener/切线仍然HOLD。
-- 固定源码最终提交以Git仓库当次CI为准。合成单元测试包含20 YAML通过，混合text+MRS明确HOLD，非法格式/编码、空payload、不安全路径、文件超额、1MiB YAML内存上限、Geo状态变化、私密材料不出诊断。原完整AI/非AI/三端回归与精简路由器运行时门禁被加入现有候选Workflow。
+- **固定代码与完整CI**：[源码Git `2db6f78b7cd4e78f81590ea294f01defde82353e`](https://github.com/Kimbersy/openclash/commit/2db6f78b7cd4e78f81590ea294f01defde82353e)，[GitHub Actions #43581623993](https://github.com/Kimbersy/openclash/actions/runs/43581623993) `completed/success`，新脚本/合成单元测试及运行时白名单、Geo外部依赖、原全P0/三端/非AI冻结全部通过。合成测试包含20 YAML、text/MRS区分、非法格式/编码/空payload、路径/symlink/文件大小、YAML 1MiB内存上限、Geo状态变化和私密材料不出诊断。**未在用户iStoreOS运行新版静态检查，此CI不是实机通过。**
+
 - 不修改正式`main`、用户iStoreOS生产配置、HTTP Provider、Cloudflare Worker/KV、Android/iOS公共订阅，不自动启用AI切换。
 
-## 唯一下一步（取决于最终CI）
+## 唯一下一步：一条固定源码的零外联实机静态检查
 
-完成上述候选脚本的**最新完整GitHub CI**确认并回读固定源码。仅CI全PASS后，才可以向用户提供一条可在TTYD运行的固定SHA的**仅静态缓存结构检查**命令；只回传四个匿名字段。若HOLD，不重试旧 NetNS、Geo、缓存字节门禁；先在候选源码层分析具体格式限制。下一阶段独立研究可证明完整IPv4/IPv6出网封锁的隔离方式，明确以后真实配置`-t`不得在未知网络暴露下运行。
+只在 iStoreOS TTYD 执行下面**已通过全套CI的固定 `2db6f78b`** 命令一次；本次下载的独立Ruby脚本仅落在`/tmp`，执行后删除脚本文件，**脚本自身零网络调用、不启动Mihomo、不写副本、不改系统/规则/路由/Worker/原订阅**：
+
+```sh
+( umask 077; f="$(mktemp /tmp/ai_cacheshape_XXXXXX)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/2db6f78b7cd4e78f81590ea294f01defde82353e/scripts/ai_rule_cache_structure_readonly.rb"; then ruby "$f" || echo "STRUCTURE_RESULT=HOLD_SCRIPT_RUNTIME"; else echo "STRUCTURE_RESULT=HOLD_DOWNLOAD_UNAVAILABLE"; fi; rm -f "$f" )
+```
+
+仅回传`STRUCTURE_RESULT`、`CACHE_YAML_STATIC`、`CACHE_TEXT_STATIC`、`CACHE_MRS_UNPARSED`四项匿名结果。若有`HOLD_*`停止并依结果走候选源码分析，不重复NetNS/17:20缓存复制/Geo检查。即使静态通过也不代表内核解析成功，`MIHOMO_SYNTAX=NOT_VALIDATED NETWORK_ISOLATION=NOT_PROVEN`不变，严禁因此对真实配置直接运行`-t`。
 
 P0最终目标：全部有效订阅节点、三平台真实业务资格、真实地区动态组、订阅增量、稳态主备；这些均未实机交付。当前`BUSINESS=UNKNOWN LISTENER_INSTALLED=NO AUTO_SWITCH=OFF`，VPS仍属条件性备选。
