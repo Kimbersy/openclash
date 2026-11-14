@@ -16,7 +16,6 @@ module AiRefreshObserverRuntimePreflight
     if File.const_defined?(:NOFOLLOW)
       out['RUBY_FILE_NOFOLLOW'] = 'PASS'
       begin
-        File.umask(0077)
         a = File.open(LOCK, File::RDWR|File::CREAT|File::NOFOLLOW, 0600)
         st = a.stat
         if st.file? && st.uid == Process.uid && st.nlink == 1 &&
@@ -41,12 +40,14 @@ module AiRefreshObserverRuntimePreflight
     rescue StandardError
       # No fallback to wall clock for the observation lifetime.
     end
+    old = nil
     begin
       old = trap('TERM') {}
-      trap('TERM', old)
       out['RUBY_SIGNAL_TRAP'] = 'PASS'
     rescue StandardError
       # Never send a signal or leave a background process.
+    ensure
+      trap('TERM', old) if old
     end
     out
   end
