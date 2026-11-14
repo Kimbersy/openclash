@@ -37,6 +37,18 @@ NOTEBOOK_API_HOSTS = frozenset((
     "notebooklm-pa.googleapis.com", "notebooklm.googleapis.com",
     "contribution.usercontent.google.com",
 ))
+# These exact Gemini data-plane hosts are already present in the published
+# AI.list. This is an acceptance classifier only, not a new DNS routing rule.
+GEMINI_API_HOSTS = frozenset((
+    "alkalicore-pa.clients6.google.com",
+    "alkalimakersuite-pa.clients6.google.com",
+    "webchannel-alkalimakersuite-pa.clients6.google.com",
+    "generativelanguage.googleapis.com",
+    "geller-pa.googleapis.com",
+    "proactivebackend-pa.googleapis.com",
+    "robinfrontend-pa.googleapis.com",
+    "signaler-pa.clients6.google.com",
+))
 GOOGLE_LOGIN = "accounts.google.com"
 LANDING_ONLY = frozenset(("notebook.google", "notebooklm.google"))
 
@@ -119,7 +131,9 @@ def check_browser_workflow_receipt(
                 return stop("HOLD_WRONG_APP_HOST")
             stages.add("app")
         elif stage in ("source_import", "answer"):
-            valid = app_hosts | NOTEBOOK_API_HOSTS if service == "notebooklm" else app_hosts
+            valid = (app_hosts | NOTEBOOK_API_HOSTS if service == "notebooklm"
+                     else app_hosts | GEMINI_API_HOSTS if service == "gemini"
+                     else app_hosts)
             if host not in valid:
                 return stop("HOLD_UNREVIEWED_DEPENDENCY")
             stages.add(stage)
