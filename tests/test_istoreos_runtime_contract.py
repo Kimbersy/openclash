@@ -25,6 +25,7 @@ LIVE_RULE_PROVIDER = ROOT / "scripts/ai_live_rule_provider_readonly.rb"
 RUNTIME_LEAF_INVENTORY = ROOT / "scripts/ai_runtime_leaf_inventory_readonly.rb"
 SOURCE_RUNTIME_DEFS = ROOT / "scripts/ai_source_runtime_definitions_readonly.rb"
 ACTIVE_SUBSCRIPTIONS = ROOT / "scripts/ai_active_subscriptions_metadata_readonly.rb"
+PASSIVE_CANDIDATE = ROOT / "scripts/ai_refresh_passive_observer_candidate.rb"
 SOCKET_OWNER_DIAG = ROOT / "scripts/ai_controller_socket_diagnostic_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
@@ -32,7 +33,7 @@ LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
 DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS}
-DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
+DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT, PASSIVE_CANDIDATE}
 
 
 def dependency_names(script: Path) -> set[str]:
@@ -129,6 +130,18 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertTrue(DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK.isdisjoint(
             DEVICE_CLI_ENTRYPOINTS))
         self.assertIn(LIGHT, DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK)
+        # Candidate requires target-confirmed File::NOFOLLOW, flock,
+        # CLOCK_MONOTONIC and signal traps before any router-facing command.
+        self.assertIn(PASSIVE_CANDIDATE, DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK)
+        source = PASSIVE_CANDIDATE.read_text(encoding="utf-8")
+        self.assertEqual(set(), dependency_names(PASSIVE_CANDIDATE))
+        for proof_gate in ("File::NOFOLLOW", "File::LOCK_EX|File::LOCK_NB",
+                           "Process::CLOCK_MONOTONIC", "trap('TERM')",
+                           "HOLD_NOT_ARMED", "TRUSTED_REMOTE_COMMIT=NOT_VERIFIED",
+                           "ALLOW_RECONCILE=NO ALLOW_SWITCH=NO"):
+            self.assertIn(proof_gate, source)
+        self.assertNotIn("Process.spawn", source)
+
         self.assertTrue(
             {"open3", "tempfile", "uri"}.issubset(dependency_names(LIGHT))
         )
@@ -150,6 +163,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("ai_runtime_leaf_inventory_readonly.rb", workflow)
         self.assertIn("ai_source_runtime_definitions_readonly.rb", workflow)
         self.assertIn("ai_active_subscriptions_metadata_readonly.rb", workflow)
+        self.assertIn("ai_refresh_passive_observer_candidate.rb", workflow)
 
 
 if __name__ == "__main__":
