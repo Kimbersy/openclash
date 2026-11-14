@@ -69,6 +69,21 @@ class TestAiRealPrivateCopy < Minitest::Test
       refute_includes status,'https://'
     end
   end
+  def test_malformed_provider_and_group_provider_reference_holds
+    a=source
+    a['proxy-providers']=['UNTRUSTED']
+    assert_equal 'HOLD_PROXY_PROVIDERS',M.overlay(a)[1]
+    b=source
+    b['rule-providers']=['UNTRUSTED']
+    assert_equal 'HOLD_RULE_PROVIDERS',M.overlay(b)[1]
+    c=source
+    c['proxy-groups'][0]['use']=['remote']
+    assert_equal 'HOLD_GROUP_PROVIDER_REFERENCE',M.overlay(c)[1]
+    d=source
+    d['rules']=['AND,((GEOSITE,google),(DOMAIN-SUFFIX,example.com)),🤖 AI']
+    assert_equal 'HOLD_GEO_RESOURCES',M.overlay(d)[1]
+  end
+
   def test_name_and_listener_conflicts_hold
     mutations={
       'HOLD_AI_PARENT'=>proc { |c| c['proxy-groups'][0]['type']='fallback' },
@@ -103,8 +118,6 @@ class TestAiRealPrivateCopy < Minitest::Test
     end
   end
   def test_native_parse_child_only_returns_anonymous_pass_or_hold
-    assert_equal 'PRIVATE_COPY_SYNTAX_PASS',
-      M.native_test('/bin/sh','-c','exit 0',seconds:0.2) if false
     # Unlike the actual program, this uses a synthetic script as the
     # executable. Bad argv must fail anonymously without exposing path.
     x=M.native_test('/path/notfound','/tmp','/tmp/example.yaml',seconds:0.2)
