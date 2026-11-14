@@ -107,6 +107,11 @@ class AiRuleCacheStructureTest < Minitest::Test
     assert_equal 'HOLD_FILE_SIZE', G.classify(@config, @root)[0]
   end
 
+  def test_yaml_memory_budget_blocks_oversized_untrusted_input
+    File.binwrite(File.join(@root, 'cache/r0.yaml'), 'x' * (G::MAX_YAML_PARSE + 1))
+    assert_equal 'HOLD_YAML_MEMORY_BUDGET', G.classify(@config, @root)[0]
+  end
+
   def test_minimal_router_runtime_no_side_effects
     script = File.read(File.join(__dir__, '../scripts/ai_rule_cache_structure_readonly.rb'))
     assert_equal ["require 'psych'"], script.scan(/^require ['"][^'"]+['"]$/)
