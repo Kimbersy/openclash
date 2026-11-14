@@ -116,6 +116,33 @@ module AiNotebookNativeCapability
     nil
   end
 
+  def cleanup_private_dir(dir)
+    # Remove only our own unguessable 0700 directory, never a real OpenClash
+    # path or a followed symlink. Mihomo -t may create harmless cache files.
+    return false unless dir.is_a?(String) &&
+                        dir.match?(%r{\A/tmp/ai_nb_native_[a-f0-9]{16}\z}) &&
+                        File.directory?(dir) && !File.symlink?(dir)
+    erase = lambda do |folder|
+      Dir.entries(folder).each do |name|
+        next if name == '.' || name == '..'
+        file = "#{folder}/#{name}"
+        if File.symlink?(file) || File.file?(file)
+          File.delete(file)
+        elsif File.directory?(file)
+          erase.call(file)
+          Dir.rmdir(file)
+        else
+          raise IOError, 'unexpected native parser artifact'
+        end
+      end
+    end
+    erase.call(dir)
+    Dir.rmdir(dir)
+    true
+  rescue StandardError
+    false
+  end
+
   def run
     puts 'MIHOMO_NATIVE_CAPABILITY=START TEST_ONLY=YES'
     pid = find_running_core_pid
@@ -145,14 +172,9 @@ module AiNotebookNativeCapability
     rescue StandardError
       result = 'HOLD_PRIVATE_TMP_UNAVAILABLE'
     ensure
-      if dir
-        begin
-          File.delete("#{dir}/synthetic.yaml") if File.file?("#{dir}/synthetic.yaml")
-          Dir.rmdir(dir)
-        rescue StandardError
-          cleanup = 'FAILED'
-          result = 'HOLD_PRIVATE_TMP_CLEANUP'
-        end
+      if dir && !cleanup_private_dir(dir)
+        cleanup = 'FAILED'
+        result = 'HOLD_PRIVATE_TMP_CLEANUP'
       end
     end
     puts "NATIVE_CAPABILITY=#{result}"
