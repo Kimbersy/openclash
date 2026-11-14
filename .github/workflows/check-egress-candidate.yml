@@ -23,6 +23,8 @@ on:
       - scripts/ai_full_region_refresh_dry_run.py
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
+      - scripts/ai_notebook_one_core_probe_candidate.py
+      - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
       - tests/test_ai_three_service_browser_flow_gate.py
       - tests/test_ai_full_region_refresh_dry_run.py
@@ -98,6 +100,8 @@ on:
       - scripts/ai_full_region_refresh_dry_run.py
       - scripts/ai_three_service_browser_flow_gate.py
       - scripts/ai_notebooklm_cta_light_probe.rb
+      - scripts/ai_notebook_one_core_probe_candidate.py
+      - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
       - tests/test_ai_three_service_browser_flow_gate.py
       - tests/test_ai_full_region_refresh_dry_run.py
@@ -304,6 +308,10 @@ jobs:
         run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
       - name: Read-only OpenClash subscription schedule and refresh provenance gate
         run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
+      - name: One-core native loopback Notebook probing entrance and zero-non-AI-change tests
+        run: |
+          python -m py_compile scripts/ai_notebook_one_core_probe_candidate.py
+          python -m unittest discover -s tests -p test_ai_notebook_one_core_probe_candidate.py -v
       - name: Low-power one-shot Notebook CTA HTTPS redirect precheck (no browser)
         run: |
           ruby -c scripts/ai_notebooklm_cta_light_probe.rb
