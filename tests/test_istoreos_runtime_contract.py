@@ -14,12 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 ADMISSION = ROOT / "scripts/ai_notebook_router_admission_readonly.rb"
 VERSION_ONLY = ROOT / "scripts/ai_mihomo_version_only_readonly.rb"
 NATIVE = ROOT / "scripts/ai_notebook_native_capability_test.rb"
+PRIVATE_COPY = ROOT / "scripts/ai_real_config_private_copy_native_gate.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY}
 DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
@@ -41,13 +42,18 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertNotRegex(source, r"""(?m)^\s*require_relative\b""")
             self.assertNotRegex(source, r"\bTimeout\s*\.")
             self.assertNotRegex(source, r"""(?m)^\s*require\s+['"]timeout['"]""")
+            if path == PRIVATE_COPY:
+                self.assertIn("Process.spawn", source)
+                self.assertIn("Process.waitpid2", source)
+                self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
+                self.assertIn("SOURCE_CREDENTIALS=LOCAL_ONLY", source)
             if path == NATIVE:
                 self.assertIn("Process.spawn", source)
                 self.assertIn("Process.waitpid2", source)
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            else:
+            elif path != PRIVATE_COPY:
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -69,6 +75,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("test_istoreos_runtime_contract.py", workflow)
         self.assertIn("ai_notebook_router_admission_readonly.rb", workflow)
         self.assertIn("ai_notebook_native_capability_test.rb", workflow)
+        self.assertIn("ai_real_config_private_copy_native_gate.rb", workflow)
 
 
 if __name__ == "__main__":
