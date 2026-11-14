@@ -160,6 +160,49 @@ class StableServiceDryRunTests(unittest.TestCase):
         self.assertEqual(res["public"]["qualified_candidates"], 0)
         self.assertEqual(res["public"]["decision"], "NO_BUSINESS_VERIFIED_BACKUP")
 
+    def test_notebooklm_old_three_step_evidence_never_enters_service_or_shared_pools(self):
+        # Regression: a 'successful' workspace/import/answer alone used to be
+        # accepted, without confirmed login, citation or consistent routing.
+        from ai_service_stability_dry_run import qualified_pool
+        args = scenario()
+        for entry in args["previous_state"].values():
+            proof = entry["services"]["notebooklm"]
+            for key in ("signed_in", "citation_checked", "route_consistent"):
+                proof["checks"].pop(key, None)
+        manifest = args["current_manifest"]
+        notebook = qualified_pool(manifest, args["previous_state"],
+                                  args["observations"], args["live_names"],
+                                  service="notebooklm", region="TW", now=NOW)
+        shared = qualified_pool(manifest, args["previous_state"],
+                                args["observations"], args["live_names"],
+                                service="shared_all_services", region="TW", now=NOW)
+        chatgpt = qualified_pool(manifest, args["previous_state"],
+                                 args["observations"], args["live_names"],
+                                 service="chatgpt", region="TW", now=NOW)
+        self.assertEqual(len(notebook), 0)
+        self.assertEqual(len(shared), 0)
+        self.assertEqual(len(chatgpt), 2)
+        # Explicit full workflow restores eligibility on synthetic fixtures;
+        # a browser/route attestation is still required in production.
+        for entry in args["previous_state"].values():
+            for key in ("signed_in", "citation_checked", "route_consistent"):
+                entry["services"]["notebooklm"]["checks"][key] = True
+        notebook = qualified_pool(manifest, args["previous_state"],
+                                  args["observations"], args["live_names"],
+                                  service="notebooklm", region="TW", now=NOW)
+        self.assertEqual(len(notebook), 2)
+
+    def test_all_three_platforms_require_same_exit_claim_before_shared_pool(self):
+        from ai_service_stability_dry_run import qualified_pool
+        for service in ("chatgpt", "gemini", "notebooklm"):
+            args = scenario()
+            for entry in args["previous_state"].values():
+                entry["services"][service]["checks"]["route_consistent"] = False
+            pool = qualified_pool(args["current_manifest"], args["previous_state"],
+                                  args["observations"], args["live_names"],
+                                  service="shared_all_services", region="TW", now=NOW)
+            self.assertEqual(pool, [], service)
+
     def test_shared_ai_parent_requires_all_three_business_proofs(self):
         args = scenario()
         args["service"] = "shared_all_services"
