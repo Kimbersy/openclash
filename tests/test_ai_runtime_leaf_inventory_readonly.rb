@@ -31,6 +31,7 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
     assert_equal 58,counters['API_EXPECTED_LEAF_PRESENT']
     assert_equal 0,counters['API_EXPECTED_LEAF_MISSING']
     assert_equal 0,counters['API_EXTRA_UNTRUSTED_LEAF']
+    assert_equal 0,counters['API_PASS_RULE_PRESET']
     refute_includes counters.inspect,'SECRET_SERVER_NEVER_PRINT'
     refute_includes counters.inspect,'SENSITIVE_NEVER_PRINT'
   end
@@ -66,7 +67,8 @@ class AiRuntimeLeafInventoryReadOnlyTests < Minitest::Test
     assert_equal 58,counts['API_EXPECTED_LEAF_PRESENT']
     assert_equal 0,counts['API_EXPECTED_LEAF_MISSING']
     assert_equal 0,counts['API_EXTRA_UNTRUSTED_LEAF']
-    assert_equal 1,counts['API_EXTRA_PRESET_MATCHED']
+    assert_equal 4,counts['API_EXTRA_PRESET_MATCHED'] # DIRECT, REJECT, GLOBAL and PASS-RULE
+    assert_equal 1,counts['API_PASS_RULE_PRESET']
     assert_equal 0,counts['API_EXTRA_PRESET_TYPE_MISMATCH']
     refute_includes counts.inspect,'PASS-RULE'
   end
