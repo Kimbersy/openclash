@@ -33,8 +33,11 @@ LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT}
-DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT, PASSIVE_CANDIDATE}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE}
+# 2026-11-14 23:35 real-device PASS: NOFOLLOW, private flock, monotonic, signals.
+# Only bounded foreground candidate (--probe / --observe) is admitted;
+# cron/procd/background installation remains forbidden and never CI-proven.
+DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
 def dependency_names(script: Path) -> set[str]:
@@ -55,6 +58,18 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertNotRegex(source, r"""(?m)^\s*require_relative\b""")
             self.assertNotRegex(source, r"\bTimeout\s*\.")
             self.assertNotRegex(source, r"""(?m)^\s*require\s+['"]timeout['"]""")
+            if path == PASSIVE_CANDIDATE:
+                for guard in ("HOLD_NOT_ARMED", "ARGV[0]=='--probe'",
+                              "ARGV[0]=='--observe'", "MAX_SECONDS = 86_400",
+                              "File::NOFOLLOW", "File::LOCK_EX|File::LOCK_NB",
+                              "trap('TERM')", "trap('HUP')",
+                              "TRUSTED_REMOTE_COMMIT=NOT_VERIFIED",
+                              "ALLOW_RECONCILE=NO ALLOW_SWITCH=NO",
+                              "PRODUCTION_CONFIG=UNCHANGED"):
+                    self.assertIn(guard, source)
+                self.assertNotIn("Process.spawn", source)
+                self.assertNotIn("require_relative", source)
+                self.assertNotIn("Net::HTTP", source)
             if path == PASSIVE_PREFLIGHT:
                 for feature in ("File::NOFOLLOW", "File::LOCK_EX|File::LOCK_NB",
                                 "Process::CLOCK_MONOTONIC", "UPDATER_CONTENT=NOT_READ",
@@ -125,7 +140,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT):
+            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE):
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -140,7 +155,8 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn(LIGHT, DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK)
         # Candidate requires target-confirmed File::NOFOLLOW, flock,
         # CLOCK_MONOTONIC and signal traps before any router-facing command.
-        self.assertIn(PASSIVE_CANDIDATE, DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK)
+        self.assertNotIn(PASSIVE_CANDIDATE, DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK)
+        self.assertIn(PASSIVE_CANDIDATE, DEVICE_CLI_ENTRYPOINTS)
         source = PASSIVE_CANDIDATE.read_text(encoding="utf-8")
         self.assertEqual(set(), dependency_names(PASSIVE_CANDIDATE))
         for proof_gate in ("File::NOFOLLOW", "File::LOCK_EX|File::LOCK_NB",
