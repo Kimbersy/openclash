@@ -44,13 +44,17 @@ module AiNotebookPrivateCopy
     listeners ||= []
     return 'HOLD_LAYOUT' unless leaves.is_a?(Array) && !leaves.empty? &&
                                 groups.is_a?(Array) && listeners.is_a?(Array)
-    return 'HOLD_PROXY_PROVIDERS' if config['proxy-providers'].is_a?(Hash) && !config['proxy-providers'].empty?
-    return 'HOLD_RULE_PROVIDERS' if config['rule-providers'].is_a?(Hash) && !config['rule-providers'].empty?
+    # Unknown provider layouts are also unsafe; only absence or empty maps
+    # can pass a private -d parse without remote/file dependencies.
+    return 'HOLD_PROXY_PROVIDERS' if config.key?('proxy-providers') &&
+      config['proxy-providers'] != {}
+    return 'HOLD_RULE_PROVIDERS' if config.key?('rule-providers') &&
+      config['rule-providers'] != {}
     return 'HOLD_SCRIPT_OR_EXTERNAL' if %w[script sub-rules external-ui-url geox-url].any? { |k| config.key?(k) }
     return 'HOLD_GEO_RESOURCES' if config['geodata-mode'] == true || config['geo-auto-update'] == true
     rules = config.fetch('rules', [])
     return 'HOLD_RULES_LAYOUT' unless rules.is_a?(Array) && rules.all? { |x| x.is_a?(String) }
-    return 'HOLD_GEO_RESOURCES' if rules.any? { |x| x.match?(/\A(?:GEOIP|GEOSITE|RULE-SET),/i) }
+    return 'HOLD_GEO_RESOURCES' if rules.any? { |x| x.match?(/(?:\A|[,(])(?:GEOIP|GEOSITE|RULE-SET),/i) }
     names=[]
     leaves.each do |p|
       return 'HOLD_LEAF_LAYOUT' unless p.is_a?(Hash) && p['name'].is_a?(String) && LEAVES.include?(p['type'])
@@ -60,6 +64,7 @@ module AiNotebookPrivateCopy
     gnames=[]
     groups.each do |g|
       return 'HOLD_GROUP_LAYOUT' unless g.is_a?(Hash) && g['name'].is_a?(String) && g['proxies'].is_a?(Array)
+      return 'HOLD_GROUP_PROVIDER_REFERENCE' if g.key?('use') || g['include-all'] == true
       gnames << g['name']
     end
     return 'HOLD_NAME_COLLISION' unless gnames.uniq == gnames && (names & gnames).empty? &&
