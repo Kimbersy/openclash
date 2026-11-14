@@ -1,0 +1,542 @@
+name: Test Egress Audit Candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/egress-audit-20261111
+    paths:
+      - scripts/audit_egress.py
+      - scripts/render_verified_candidate.py
+      - scripts/prepare_isolated_audit.py
+      - scripts/subscription_snapshot.py
+      - scripts/reconcile_subscription.py
+      - scripts/ai_dynamic_refresh_planner.py
+      - scripts/ai_service_stability_dry_run.py
+      - tests/test_ai_service_stability_dry_run.py
+      - scripts/ai_refresh_event_gate.py
+      - tests/test_ai_refresh_event_gate.py
+      - scripts/ai_refresh_transition_gate.py
+      - tests/test_ai_refresh_transition_gate.py
+      - scripts/render_ai_only_candidate.py
+      - scripts/build_router_ai_p0_candidate.py
+      - scripts/ai_full_region_refresh_dry_run.py
+      - scripts/ai_three_service_browser_flow_gate.py
+      - scripts/ai_notebooklm_cta_light_probe.rb
+      - scripts/ai_notebook_one_core_probe_candidate.py
+      - scripts/ai_notebook_router_admission_readonly.rb
+      - scripts/ai_mihomo_version_only_readonly.rb
+      - scripts/ai_notebook_native_capability_test.rb
+      - scripts/ai_real_config_private_copy_native_gate.rb
+      - scripts/ai_rule_provider_inventory_readonly.rb
+      - scripts/ai_ruleset_cached_offline_overlay.py
+      - scripts/ai_geo_flags_only_readonly.rb
+      - tests/test_ai_geo_flags_only_readonly.rb
+      - scripts/ai_rule_cache_byte_copy_gate.rb
+      - tests/test_ai_rule_cache_byte_copy_gate.rb
+      - scripts/ai_real_config_resource_gate.py
+      - tests/test_ai_real_config_resource_gate.py
+      - scripts/ai_netns_capability_readonly.sh
+      - tests/test_ai_netns_capability_readonly.py
+      - scripts/ai_rule_cache_structure_readonly.rb
+      - tests/test_ai_rule_cache_structure_readonly.rb
+      - scripts/ai_rule_cache_size_profile_readonly.rb
+      - tests/test_ai_rule_cache_size_profile_readonly.rb
+      - scripts/ai_two_cache_static_readonly.rb
+      - tests/test_ai_two_cache_static_readonly.rb
+      - scripts/ai_live_rule_provider_readonly.rb
+      - tests/test_ai_live_rule_provider_readonly.rb
+      - scripts/ai_controller_socket_diagnostic_readonly.rb
+      - tests/test_ai_controller_socket_diagnostic_readonly.rb
+      - scripts/ai_runtime_leaf_inventory_readonly.rb
+      - tests/test_ai_runtime_leaf_inventory_readonly.rb
+      - scripts/ai_source_runtime_definitions_readonly.rb
+      - tests/test_ai_source_runtime_definitions_readonly.rb
+      - scripts/ai_active_subscriptions_metadata_readonly.rb
+      - tests/test_ai_active_subscriptions_metadata_readonly.rb
+      - scripts/ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_unattended_control_candidate.rb
+      - scripts/ai_unattended_schedule_capability_readonly.rb
+      - tests/test_ai_unattended_schedule_capability_readonly.rb
+      - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
+      - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
+      - tests/test_ai_ruleset_cached_offline_overlay.py
+      - tests/make_ai_cached_ruleset_native_fixture.py
+      - tests/test_ai_rule_provider_inventory_readonly.rb
+      - tests/make_ai_real_private_copy_mihomo_fixture.rb
+      - tests/test_ai_real_config_private_copy_native_gate.rb
+      - tests/test_ai_notebook_native_capability_test.rb
+      - tests/test_ai_mihomo_version_only_readonly.rb
+      - tests/test_ai_notebook_router_admission_readonly.rb
+      - tests/test_istoreos_runtime_contract.py
+      - tests/make_ai_notebook_native_mihomo_fixture.py
+      - tests/test_ai_notebook_one_core_probe_candidate.py
+      - tests/test_ai_notebooklm_cta_light_probe.rb
+      - tests/test_ai_three_service_browser_flow_gate.py
+      - tests/test_ai_full_region_refresh_dry_run.py
+      - tests/test_build_router_ai_p0_candidate.py
+      - tests/test_render_ai_only_candidate.py
+      - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
+      - docs/AI_REFRESH_EVENT_GATE_20261113.md
+      - scripts/inspect_active_subscription.rb
+      - scripts/prepare_local_probe.rb
+      - scripts/prepare_local_probe_core.rb
+      - scripts/ai_subscription_inventory.rb
+      - scripts/ai_regional_pools.rb
+      - scripts/ai_source_link_readonly.sh
+      - scripts/ai_service_reachability_pilot.sh
+      - scripts/ai_network_batch_once.sh
+      - scripts/ai_refresh_schedule_readonly.rb
+      - scripts/ai_live_membership_readonly.rb
+      - scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - scripts/ai_mobile_evidence_readonly.sh
+      - scripts/ai_mobile_followup_readonly.sh
+      - tests/test_ai_mobile_followup_readonly.rb
+      - tests/test_ai_live_membership_readonly.rb
+      - scripts/ai_refresh_log_evidence.rb
+      - tests/test_ai_refresh_log_evidence.rb
+      - scripts/ai_refresh_activation_gate_readonly.rb
+      - scripts/ai_proc_clock_readonly.rb
+      - tests/test_ai_proc_clock_readonly.rb
+      - scripts/ai_refresh_causal_sequence.py
+      - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_047151_postcommit_dryrun.py
+      - tests/test_ai_047151_postcommit_dryrun.py
+      - scripts/ai_installed_updater_preflight_readonly.sh
+      - scripts/ai_updater_sha1_core_readonly.sh
+      - tests/test_ai_updater_sha1_core_readonly.rb
+      - tests/test_ai_openclash_updater_contract.py
+      - tests/test_ai_refresh_causal_sequence.py
+      - tests/test_ai_refresh_activation_gate_readonly.rb
+      - tests/test_ai_refresh_schedule_readonly.rb
+      - list/AI.list
+      - Clash-Li.ini
+      - generated/Clash-Meta-Android.template.yaml
+      - docs/AI_THREE_CLIENT_COMPATIBILITY_20261113.md
+      - tests/test_shared_three_client_contract.py
+      - tests/test_audit_egress.py
+      - tests/test_render_verified_candidate.py
+      - tests/test_prepare_isolated_audit.py
+      - tests/test_subscription_snapshot.py
+      - tests/test_reconcile_subscription.py
+      - tests/test_ai_dynamic_refresh_planner.py
+      - tests/test_inspect_active_subscription.py
+      - tests/test_prepare_local_probe.py
+      - tests/test_prepare_local_probe_core.py
+      - tests/test_ai_subscription_inventory.rb
+      - tests/test_ai_regional_pools.rb
+      - tests/test_notebooklm_redirect_gate.py
+      - .github/workflows/check-egress-candidate.yml
+  pull_request:
+    paths:
+      - scripts/audit_egress.py
+      - scripts/render_verified_candidate.py
+      - scripts/prepare_isolated_audit.py
+      - scripts/subscription_snapshot.py
+      - scripts/reconcile_subscription.py
+      - scripts/ai_dynamic_refresh_planner.py
+      - scripts/ai_service_stability_dry_run.py
+      - tests/test_ai_service_stability_dry_run.py
+      - scripts/ai_refresh_event_gate.py
+      - tests/test_ai_refresh_event_gate.py
+      - scripts/ai_refresh_transition_gate.py
+      - tests/test_ai_refresh_transition_gate.py
+      - scripts/render_ai_only_candidate.py
+      - scripts/build_router_ai_p0_candidate.py
+      - scripts/ai_full_region_refresh_dry_run.py
+      - scripts/ai_three_service_browser_flow_gate.py
+      - scripts/ai_notebooklm_cta_light_probe.rb
+      - scripts/ai_notebook_one_core_probe_candidate.py
+      - scripts/ai_notebook_router_admission_readonly.rb
+      - scripts/ai_mihomo_version_only_readonly.rb
+      - scripts/ai_notebook_native_capability_test.rb
+      - scripts/ai_real_config_private_copy_native_gate.rb
+      - scripts/ai_rule_provider_inventory_readonly.rb
+      - scripts/ai_ruleset_cached_offline_overlay.py
+      - scripts/ai_geo_flags_only_readonly.rb
+      - tests/test_ai_geo_flags_only_readonly.rb
+      - scripts/ai_rule_cache_byte_copy_gate.rb
+      - tests/test_ai_rule_cache_byte_copy_gate.rb
+      - scripts/ai_real_config_resource_gate.py
+      - tests/test_ai_real_config_resource_gate.py
+      - scripts/ai_netns_capability_readonly.sh
+      - tests/test_ai_netns_capability_readonly.py
+      - scripts/ai_rule_cache_structure_readonly.rb
+      - tests/test_ai_rule_cache_structure_readonly.rb
+      - scripts/ai_rule_cache_size_profile_readonly.rb
+      - tests/test_ai_rule_cache_size_profile_readonly.rb
+      - scripts/ai_two_cache_static_readonly.rb
+      - tests/test_ai_two_cache_static_readonly.rb
+      - scripts/ai_live_rule_provider_readonly.rb
+      - tests/test_ai_live_rule_provider_readonly.rb
+      - scripts/ai_controller_socket_diagnostic_readonly.rb
+      - tests/test_ai_controller_socket_diagnostic_readonly.rb
+      - scripts/ai_runtime_leaf_inventory_readonly.rb
+      - tests/test_ai_runtime_leaf_inventory_readonly.rb
+      - scripts/ai_source_runtime_definitions_readonly.rb
+      - tests/test_ai_source_runtime_definitions_readonly.rb
+      - scripts/ai_active_subscriptions_metadata_readonly.rb
+      - tests/test_ai_active_subscriptions_metadata_readonly.rb
+      - scripts/ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_passive_observer_candidate.rb
+      - tests/test_ai_refresh_unattended_control_candidate.rb
+      - scripts/ai_unattended_schedule_capability_readonly.rb
+      - tests/test_ai_unattended_schedule_capability_readonly.rb
+      - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
+      - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
+      - tests/test_ai_ruleset_cached_offline_overlay.py
+      - tests/make_ai_cached_ruleset_native_fixture.py
+      - tests/test_ai_rule_provider_inventory_readonly.rb
+      - tests/make_ai_real_private_copy_mihomo_fixture.rb
+      - tests/test_ai_real_config_private_copy_native_gate.rb
+      - tests/test_ai_notebook_native_capability_test.rb
+      - tests/test_ai_mihomo_version_only_readonly.rb
+      - tests/test_ai_notebook_router_admission_readonly.rb
+      - tests/test_istoreos_runtime_contract.py
+      - tests/make_ai_notebook_native_mihomo_fixture.py
+      - tests/test_ai_notebook_one_core_probe_candidate.py
+      - tests/test_ai_notebooklm_cta_light_probe.rb
+      - tests/test_ai_three_service_browser_flow_gate.py
+      - tests/test_ai_full_region_refresh_dry_run.py
+      - tests/test_build_router_ai_p0_candidate.py
+      - tests/test_render_ai_only_candidate.py
+      - docs/AI_DYNAMIC_MONITOR_DESIGN_20261113.md
+      - docs/AI_REFRESH_EVENT_GATE_20261113.md
+      - scripts/inspect_active_subscription.rb
+      - scripts/prepare_local_probe.rb
+      - scripts/prepare_local_probe_core.rb
+      - scripts/ai_subscription_inventory.rb
+      - scripts/ai_regional_pools.rb
+      - scripts/ai_source_link_readonly.sh
+      - scripts/ai_service_reachability_pilot.sh
+      - scripts/ai_network_batch_once.sh
+      - scripts/ai_refresh_schedule_readonly.rb
+      - scripts/ai_live_membership_readonly.rb
+      - scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - scripts/ai_mobile_evidence_readonly.sh
+      - scripts/ai_mobile_followup_readonly.sh
+      - tests/test_ai_mobile_followup_readonly.rb
+      - tests/test_ai_live_membership_readonly.rb
+      - scripts/ai_refresh_log_evidence.rb
+      - tests/test_ai_refresh_log_evidence.rb
+      - scripts/ai_refresh_activation_gate_readonly.rb
+      - scripts/ai_proc_clock_readonly.rb
+      - tests/test_ai_proc_clock_readonly.rb
+      - scripts/ai_refresh_causal_sequence.py
+      - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_047151_postcommit_dryrun.py
+      - tests/test_ai_047151_postcommit_dryrun.py
+      - scripts/ai_installed_updater_preflight_readonly.sh
+      - scripts/ai_updater_sha1_core_readonly.sh
+      - tests/test_ai_updater_sha1_core_readonly.rb
+      - tests/test_ai_openclash_updater_contract.py
+      - tests/test_ai_refresh_causal_sequence.py
+      - tests/test_ai_refresh_activation_gate_readonly.rb
+      - tests/test_ai_refresh_schedule_readonly.rb
+      - list/AI.list
+      - Clash-Li.ini
+      - generated/Clash-Meta-Android.template.yaml
+      - docs/AI_THREE_CLIENT_COMPATIBILITY_20261113.md
+      - tests/test_shared_three_client_contract.py
+      - tests/test_audit_egress.py
+      - tests/test_render_verified_candidate.py
+      - tests/test_prepare_isolated_audit.py
+      - tests/test_subscription_snapshot.py
+      - tests/test_reconcile_subscription.py
+      - tests/test_ai_dynamic_refresh_planner.py
+      - tests/test_inspect_active_subscription.py
+      - tests/test_prepare_local_probe.py
+      - tests/test_prepare_local_probe_core.py
+      - tests/test_ai_subscription_inventory.rb
+      - tests/test_ai_regional_pools.rb
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-cross-client:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated-audit YAML parser
+        run: python -m pip install PyYAML==6.0.2
+      - name: Ruby iStoreOS census syntax
+        run: ruby -c scripts/inspect_active_subscription.rb && ruby -c scripts/prepare_local_probe.rb && ruby -c scripts/prepare_local_probe_core.rb && ruby -c scripts/ai_subscription_inventory.rb && ruby -c scripts/ai_regional_pools.rb
+      - name: Full-subscription inventory Ruby tests
+        run: ruby -I scripts tests/test_ai_subscription_inventory.rb && ruby -I scripts tests/test_ai_regional_pools.rb
+      - name: Read-only source provenance TTYD snippet syntax
+        run: |
+          sh -n scripts/ai_source_link_readonly.sh
+          sed '1d;$d' scripts/ai_source_link_readonly.sh > /tmp/ai_source_link_readonly.rb
+          ruby -c /tmp/ai_source_link_readonly.rb
+      - name: Isolated AI site reachability pilot shell and embedded Ruby syntax
+        run: |
+          sh -n scripts/ai_service_reachability_pilot.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          source = pathlib.Path('scripts/ai_service_reachability_pilot.sh').read_text()
+          for tag in ('RUBY_PREP','RUBY_CLEAN'):
+              match = re.search(r"<<'" + tag + r"'\n(.*?)\n" + tag + r"(?=\n|$)", source, re.S)
+              assert match, tag
+              subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
+          print('PILOT_SYNTAX=PASS')
+          PY
+      - name: AI all-pool bounded batch and incomplete-HTTP classifier tests
+        run: |
+          sh -n scripts/ai_network_batch_once.sh
+          TEST_CLASSIFIER=1 sh scripts/ai_network_batch_once.sh
+          TEST_GEO_CLASSIFIER=1 sh scripts/ai_network_batch_once.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          source = pathlib.Path('scripts/ai_network_batch_once.sh').read_text()
+          for tag in ('RUBY_PREP','RUBY_CLEAN'):
+              match = re.search(r"<<'" + tag + r"'\n(.*?)\n" + tag + r"(?=\n|$)", source, re.S)
+              assert match, tag
+              subprocess.run(['ruby', '-c'], input=match.group(1), text=True, check=True)
+          print('BATCH_SYNTAX=PASS')
+          PY
+      - name: NotebookLM redirect/access gate regression
+        run: |
+          python -m unittest discover -s tests -p test_notebooklm_redirect_gate.py -v
+          python - <<'PY'
+          import pathlib,re,subprocess
+          s=pathlib.Path('scripts/ai_network_batch_once.sh').read_text()
+          m=re.search(r"<<'RUBY_NOTEBOOK'\n(.*?)\nRUBY_NOTEBOOK(?=\n|$)",s,re.S)
+          assert m,'missing NotebookLM classifier'
+          subprocess.run(['ruby','-c'],input=m.group(1),text=True,check=True)
+          PY
+      - name: AI-only post-update multi-signal transition fail-closed tests
+        run: python -m unittest discover -s tests -p test_ai_refresh_transition_gate.py -v
+      - name: Reject non-authenticated OpenClash update and Mihomo reload evidence
+        run: python -m unittest discover -s tests -p test_ai_refresh_event_gate.py -v
+      - name: Private input AI service business proof and sticky failover DRY_RUN regression
+        run: |
+          python -m py_compile scripts/ai_service_stability_dry_run.py
+          python -m unittest discover -s tests -p test_ai_service_stability_dry_run.py -v
+      - name: Dynamic subscription AI qualification reconciliation tests
+        run: python -m unittest discover -s tests -p test_ai_dynamic_refresh_planner.py -v
+      - name: Minimal iStoreOS Ruby-core SHA1 16KB Git blob cross-check against standard Digest
+        run: |
+          sh -n scripts/ai_updater_sha1_core_readonly.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          s = pathlib.Path('scripts/ai_updater_sha1_core_readonly.sh').read_text()
+          match = re.search(r"ruby <<'RUBY'\n(.*?)\nRUBY(?=\n|$)", s, re.S)
+          assert match
+          subprocess.run(['ruby','-c'],input=match.group(1),text=True,check=True)
+          PY
+          ruby -I scripts tests/test_ai_updater_sha1_core_readonly.rb
+          output="$(sh scripts/ai_updater_sha1_core_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^UPDATER_FINGERPRINT=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^INSTALLED_UPDATER='
+          printf '%s\n' "$output" | grep -q '^UPDATER_FINGERPRINT=FINISHED PRODUCTION_WRITES=NONE'
+      - name: Short iStoreOS installed updater fingerprint no-network preflight smoke
+        run: |
+          sh -n scripts/ai_installed_updater_preflight_readonly.sh
+          python - <<'PY'
+          import pathlib, re, subprocess
+          text=pathlib.Path('scripts/ai_installed_updater_preflight_readonly.sh').read_text()
+          m=re.search(r"<<'RUBY'\n(.*?)\nRUBY(?=\n|$)",text,re.S)
+          assert m, 'missing inline Ruby'
+          subprocess.run(['ruby','-c'],input=m.group(1),text=True,check=True)
+          assert 'curl ' not in text and 'wget ' not in text
+          PY
+          output="$(sh scripts/ai_installed_updater_preflight_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^UPDATER_PREFLIGHT=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^INSTALLED_UPDATER='
+          printf '%s\n' "$output" | grep -q '^KERNEL_AT_CLKTCK='
+          printf '%s\n' "$output" | grep -q '^UPDATER_PREFLIGHT=FINISHED PRODUCTION_WRITES=NONE'
+      - name: Minimal 0.47.151 postcommit failure and rollback DRY_RUN checks
+        run: |
+          python -m py_compile scripts/ai_047151_postcommit_dryrun.py
+          python -m unittest discover -s tests -p test_ai_047151_postcommit_dryrun.py -v
+      - name: Exact upstream updater version and protected postcommit contract safety
+        run: |
+          python -m py_compile scripts/ai_openclash_updater_contract.py
+          python -m unittest discover -s tests -p test_ai_openclash_updater_contract.py -v
+      - name: Kernel auxv clock and natural update chronology never fake runtime proof
+        run: |
+          ruby -c scripts/ai_proc_clock_readonly.rb
+          ruby -I scripts tests/test_ai_proc_clock_readonly.rb
+          python -m py_compile scripts/ai_refresh_causal_sequence.py
+          python -m unittest discover -s tests -p test_ai_refresh_causal_sequence.py -v
+      - name: Read-only update success + post-update core activation evidence safety gate
+        run: ruby -c scripts/ai_refresh_activation_gate_readonly.rb && ruby -I scripts tests/test_ai_refresh_activation_gate_readonly.rb
+      - name: Read-only OpenClash updater log evidence classifier
+        run: ruby -c scripts/ai_refresh_log_evidence.rb && ruby -I scripts tests/test_ai_refresh_log_evidence.rb
+      - name: Combined read-only update and live core evidence bundle syntax
+        run: ruby -c scripts/ai_refresh_live_evidence_bundle_readonly.rb
+      - name: iStoreOS mobile inline no-download Ruby/Psych evidence bundle smoke
+        run: |
+          sh -n scripts/ai_mobile_evidence_readonly.sh
+          sed '1,4d;$d' scripts/ai_mobile_evidence_readonly.sh | ruby -c
+          ! grep -q "require 'time'" scripts/ai_mobile_evidence_readonly.sh
+          output="$(sh scripts/ai_mobile_evidence_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^POST_UPDATE_ACTIVATION_EVIDENCE='
+          printf '%s\n' "$output" | grep -q '^LIVE_API='
+          if printf '%s\n' "$output" | grep -q '^LIVE_API=READ_ONLY_GET_SUCCESS'; then
+            printf '%s\n' "$output" | grep -q '^LIVE_PROXY_NAME_COVERAGE='
+          else
+            ! printf '%s\n' "$output" | grep -q '^LIVE_API=READ_ONLY_GET_SUCCESS'
+          fi
+          printf '%s\n' "$output" | grep -q 'PRODUCTION_WRITES=NONE'
+      - name: iStoreOS anonymous post-receipt core clock and extra-node follow-up tests
+        run: |
+          sh -n scripts/ai_mobile_followup_readonly.sh
+          sed '1,4d;$d' scripts/ai_mobile_followup_readonly.sh | ruby -c
+          ruby -I scripts tests/test_ai_mobile_followup_readonly.rb
+          output="$(sh scripts/ai_mobile_followup_readonly.sh)"
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -q '^FOLLOWUP=START READ_ONLY=YES'
+          printf '%s\n' "$output" | grep -q '^FOLLOWUP=FINISHED PRODUCTION_WRITES=NONE AI_SWITCH=NONE'
+      - name: Live Mihomo loopback GET snapshot read-only safety tests
+        run: ruby -c scripts/ai_live_membership_readonly.rb && ruby -I scripts tests/test_ai_live_membership_readonly.rb
+      - name: Read-only OpenClash subscription schedule and refresh provenance gate
+        run: ruby -c scripts/ai_refresh_schedule_readonly.rb && ruby -I scripts tests/test_ai_refresh_schedule_readonly.rb
+      - name: Native Mihomo v1.19.34 parser validates synthetic one-core loopback listener
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ai-probe-native
+          curl -fLsS --retry 2 --connect-timeout 10 --max-time 120 \
+            -o /tmp/ai-probe-native/mihomo.gz \
+            https://github.com/MetaCubeX/mihomo/releases/download/v1.19.34/mihomo-linux-amd64-compatible-v1.19.34.gz
+          printf '%s  %s\n' \
+            '2763f5b414527f7baf6dc57e3f82f3ab561eedf34bfd7c2f2cde1f7e592efe06' \
+            /tmp/ai-probe-native/mihomo.gz | sha256sum -c -
+          gzip -dc /tmp/ai-probe-native/mihomo.gz > /tmp/ai-probe-native/mihomo
+          chmod 700 /tmp/ai-probe-native/mihomo
+          python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
+          /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
+          ruby -e 'load ARGV[0]; print AiNotebookNativeCapability.synthetic_yaml' scripts/ai_notebook_native_capability_test.rb > /tmp/ai-probe-native/native-ruby.yaml
+          /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/native-ruby.yaml
+          ruby tests/make_ai_real_private_copy_mihomo_fixture.rb /tmp/ai-probe-native/private-overlay.yaml
+          /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/private-overlay.yaml
+          python tests/make_ai_cached_ruleset_native_fixture.py /tmp/ai-probe-native/cached-20
+          /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native/cached-20 -f /tmp/ai-probe-native/cached-20/config.yaml
+      - name: Geo dat-mode versus auto-update versus custom-url limited read-only checks
+        run: |
+          ruby -c scripts/ai_geo_flags_only_readonly.rb
+          ruby tests/test_ai_geo_flags_only_readonly.rb
+      - name: Existing controller socket ownership no-HTTP anonymous diagnostic
+        run: |
+          ruby -c scripts/ai_controller_socket_diagnostic_readonly.rb
+          ruby tests/test_ai_controller_socket_diagnostic_readonly.rb
+      - name: One-shot target Ruby passive observer primitive preflight has no production effects
+        run: |
+          ruby -c scripts/ai_refresh_observer_runtime_preflight_readonly.rb
+          ruby tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
+      - name: Single-shot no-fork update hour and Ruby method availability runtime preflight
+        run: |
+          ruby -c scripts/ai_unattended_schedule_capability_readonly.rb
+          ruby tests/test_ai_unattended_schedule_capability_readonly.rb
+      - name: Detached passive observer candidate private receipt and PID-verified stop fail closed
+        run: |
+          ruby tests/test_ai_refresh_unattended_control_candidate.rb
+      - name: Bounded single-instance passive update chronology cannot authorize AI writes or switching
+        run: |
+          ruby -c scripts/ai_refresh_passive_observer_candidate.rb
+          ruby tests/test_ai_refresh_passive_observer_candidate.rb
+      - name: Real OpenClash enabled subscription UCI flags with anonymous no-HTTP census
+        run: |
+          ruby -c scripts/ai_active_subscriptions_metadata_readonly.rb
+          ruby tests/test_ai_active_subscriptions_metadata_readonly.rb
+      - name: Selected source versus current running-core disk full proxy definitions no HTTP
+        run: |
+          ruby -c scripts/ai_source_runtime_definitions_readonly.rb
+          ruby tests/test_ai_source_runtime_definitions_readonly.rb
+      - name: Current Mihomo IPv4-only leaf inventory with dynamic node and group exclusions
+        run: |
+          ruby -c scripts/ai_runtime_leaf_inventory_readonly.rb
+          ruby tests/test_ai_runtime_leaf_inventory_readonly.rb
+      - name: Real-running-core rule-provider GET-only anonymous registration and rule-count census
+        run: |
+          ruby -c scripts/ai_live_rule_provider_readonly.rb
+          ruby tests/test_ai_live_rule_provider_readonly.rb
+      - name: Isolated 2-cache limited structural evidence on big YAML and MRS v1
+        run: |
+          ruby -c scripts/ai_two_cache_static_readonly.rb
+          ruby tests/test_ai_two_cache_static_readonly.rb
+      - name: Anonymous 20-source cache size and format profile without content reads
+        run: |
+          ruby -c scripts/ai_rule_cache_size_profile_readonly.rb
+          ruby tests/test_ai_rule_cache_size_profile_readonly.rb
+      - name: Pure local YAML text MRS cache structure static analysis (never invoke Mihomo)
+        run: |
+          ruby -c scripts/ai_rule_cache_structure_readonly.rb
+          ruby tests/test_ai_rule_cache_structure_readonly.rb
+      - name: Isolated child netns capability anonymous audit (not an egress proof)
+        run: |
+          sh -n scripts/ai_netns_capability_readonly.sh
+          python -m unittest discover -s tests -p test_ai_netns_capability_readonly.py -v
+      - name: External Geo DNS assets and real private-config fail-closed offline audit
+        run: |
+          python -m py_compile scripts/ai_real_config_resource_gate.py
+          python -m unittest discover -s tests -p test_ai_real_config_resource_gate.py -v
+      - name: On-device HTTP rule-cache private byte copy without -t or downloads
+        run: |
+          ruby -c scripts/ai_rule_cache_byte_copy_gate.rb
+          ruby tests/test_ai_rule_cache_byte_copy_gate.rb
+      - name: Cached HTTP rule providers private-file overlay offline tests
+        run: |
+          python -m py_compile scripts/ai_ruleset_cached_offline_overlay.py
+          python -m unittest discover -s tests -p test_ai_ruleset_cached_offline_overlay.py -v
+      - name: Rule-providers real config HOLD follow-up, anonymous read-only inventory with no network
+        run: |
+          ruby -c scripts/ai_rule_provider_inventory_readonly.rb
+          ruby tests/test_ai_rule_provider_inventory_readonly.rb
+      - name: Private real-config copy preflight without remote providers or routing changes
+        run: |
+          ruby -c scripts/ai_real_config_private_copy_native_gate.rb
+          ruby tests/test_ai_real_config_private_copy_native_gate.rb
+      - name: Version-string-independent native -t capability gate with isolated synthetic fixture
+        run: |
+          ruby -c scripts/ai_notebook_native_capability_test.rb
+          ruby tests/test_ai_notebook_native_capability_test.rb
+      - name: Real iStoreOS core version-only diagnostic, no stdout/stderr leakage
+        run: |
+          ruby -c scripts/ai_mihomo_version_only_readonly.rb
+          ruby tests/test_ai_mihomo_version_only_readonly.rb
+      - name: iStoreOS minimal-runtime dependency contract (real-device allowlist)
+        run: |
+          python -m unittest discover -s tests -p test_istoreos_runtime_contract.py -v
+      - name: Router read-only Notebook preflight checks installed core and port without private logs
+        run: |
+          ruby -c scripts/ai_notebook_router_admission_readonly.rb
+          ruby tests/test_ai_notebook_router_admission_readonly.rb
+      - name: One-core native loopback Notebook probing entrance and zero-non-AI-change tests
+        run: |
+          python -m py_compile scripts/ai_notebook_one_core_probe_candidate.py
+          python -m unittest discover -s tests -p test_ai_notebook_one_core_probe_candidate.py -v
+      - name: Low-power one-shot Notebook CTA HTTPS redirect precheck (no browser)
+        run: |
+          ruby -c scripts/ai_notebooklm_cta_light_probe.rb
+          ruby -I scripts tests/test_ai_notebooklm_cta_light_probe.rb
+      - name: Three AI websites and NotebookLM browser import same-exit acceptance DRY_RUN
+        run: |
+          python -m py_compile scripts/ai_three_service_browser_flow_gate.py
+          python -m unittest discover -s tests -p test_ai_three_service_browser_flow_gate.py -v
+      - name: Router P0 all AI service pools, dynamic real-egress countries and incremental refresh dry run
+        run: |
+          python -m py_compile scripts/ai_full_region_refresh_dry_run.py
+          python -m unittest discover -s tests -p test_ai_full_region_refresh_dry_run.py -v
+      - name: Router P0 independent AI-only fallback and non-AI invariance regression
+        run: |
+          python -m py_compile scripts/build_router_ai_p0_candidate.py
+          python -m unittest discover -s tests -p test_build_router_ai_p0_candidate.py -v
+      - name: AI-only candidate preserves non-AI rules across Android and Shadowrocket
+        run: python -m unittest discover -s tests -p test_render_ai_only_candidate.py -v
+      - name: Shared converter baseline and Android/iOS isolation gate
+        run: python -m unittest discover -s tests -p test_shared_three_client_contract.py -v
+      - name: Compile scripts
+        run: python -m py_compile scripts/audit_egress.py scripts/render_verified_candidate.py scripts/prepare_isolated_audit.py scripts/subscription_snapshot.py scripts/reconcile_subscription.py scripts/ai_dynamic_refresh_planner.py scripts/render_ai_only_candidate.py scripts/ai_refresh_event_gate.py scripts/ai_refresh_transition_gate.py
+      - name: Unit and existing generator integration tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
