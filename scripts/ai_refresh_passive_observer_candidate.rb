@@ -117,7 +117,7 @@ module AiRefreshPassiveObserverCandidate
     return 'HOLD_LOG_GAP' if hint=='LOG_GAP'
     return 'HOLD_LOG_ERROR_HINT' if hint=='ERROR_REPORTED'
     return 'HOLD_MULTIPLE_LOG_EVENTS' if hint=='LOG_EVENTS_MIXED'
-    return 'HOLD_UNSTABLE_OBSERVATION' unless stable_samples>=2
+    return 'HOLD_UNSTABLE_OBSERVATION' unless stable_samples.is_a?(Integer) && stable_samples>=2
     src=before[:source]!=after[:source]
     runtime=before[:runtime]!=after[:runtime]
     core=before[:core]!=after[:core]
@@ -151,7 +151,13 @@ module AiRefreshPassiveObserverCandidate
       return
     end
     # Dedicated /tmp flock path: never remove the path (avoids unlink lock race).
-    lock=File.open(LOCK,File::RDWR|File::CREAT,0600)
+    # Refuse /tmp symlink tricks. Keep a 0600 root-owned regular lock only.
+    lock=File.open(LOCK,File::RDWR|File::CREAT|File::NOFOLLOW,0600)
+    meta=lock.stat
+    unless meta.file? && meta.uid==Process.uid && meta.nlink==1 && (meta.mode & 0o077)==0
+      report('HOLD_LOCK_PATH_UNSAFE')
+      return
+    end
     unless lock.flock(File::LOCK_EX|File::LOCK_NB)
       report('HOLD_ALREADY_RUNNING')
       return
