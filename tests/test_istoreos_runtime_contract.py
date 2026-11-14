@@ -24,13 +24,14 @@ TWO_CACHE_STATIC = ROOT / "scripts/ai_two_cache_static_readonly.rb"
 LIVE_RULE_PROVIDER = ROOT / "scripts/ai_live_rule_provider_readonly.rb"
 RUNTIME_LEAF_INVENTORY = ROOT / "scripts/ai_runtime_leaf_inventory_readonly.rb"
 SOURCE_RUNTIME_DEFS = ROOT / "scripts/ai_source_runtime_definitions_readonly.rb"
+ACTIVE_SUBSCRIPTIONS = ROOT / "scripts/ai_active_subscriptions_metadata_readonly.rb"
 SOCKET_OWNER_DIAG = ROOT / "scripts/ai_controller_socket_diagnostic_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS}
 DEVICE_BLOCKED_PENDING_DEPENDENCY_CHECK = {LIGHT}
 
 
@@ -52,6 +53,11 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
             self.assertNotRegex(source, r"""(?m)^\s*require_relative\b""")
             self.assertNotRegex(source, r"\bTimeout\s*\.")
             self.assertNotRegex(source, r"""(?m)^\s*require\s+['"]timeout['"]""")
+            if path == ACTIVE_SUBSCRIPTIONS:
+                self.assertIn("UCI_READ_ONLY=YES", source)
+                self.assertIn("ENABLED_SUBSCRIPTION_MERGE_PROVENANCE=NOT_VERIFIED", source)
+                self.assertIn("SUBSCRIPTION_NAMES_URLS_AND_SECRETS=NOT_EMITTED", source)
+                self.assertNotIn("Process.spawn", source)
             if path == SOURCE_RUNTIME_DEFS:
                 self.assertIn("READ_ONLY_NO_HTTP=YES", source)
                 self.assertIn("MIHOMO_MEMORY_CREDENTIALS=NOT_VERIFIED", source)
@@ -110,7 +116,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS):
+            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS):
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -143,6 +149,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("ai_controller_socket_diagnostic_readonly.rb", workflow)
         self.assertIn("ai_runtime_leaf_inventory_readonly.rb", workflow)
         self.assertIn("ai_source_runtime_definitions_readonly.rb", workflow)
+        self.assertIn("ai_active_subscriptions_metadata_readonly.rb", workflow)
 
 
 if __name__ == "__main__":
