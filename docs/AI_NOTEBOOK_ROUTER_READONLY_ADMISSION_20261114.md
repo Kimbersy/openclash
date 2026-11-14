@@ -25,7 +25,7 @@
 以下通过HTTPS下载**固定提交**的**一个Ruby脚本**到`/tmp`临时文件、执行只读检查后删除临时文件；**不改任何正式配置、不改当前AI选择、不调用Controller PUT/网络测速、不重启**。仅本机临时文件创建与删除，不声称绝对“零写盘”。
 
 ```sh
-( umask 077; f="$(mktemp /tmp/ai_nbr_XXXXXX.rb)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/13fbc70a79dbd395884977825f5a4d89b1ec4b37/scripts/ai_notebook_router_admission_readonly.rb"; then ruby "$f"; else echo "ADMISSION=HOLD_DOWNLOAD_UNAVAILABLE PRODUCTION_WRITES=NONE"; fi; rm -f "$f" )
+( umask 077; f="$(mktemp /tmp/ai_nbr_XXXXXX)" || exit 1; if curl -fLsS --connect-timeout 8 --max-time 25 -o "$f" "https://raw.githubusercontent.com/Kimbersy/openclash/13fbc70a79dbd395884977825f5a4d89b1ec4b37/scripts/ai_notebook_router_admission_readonly.rb"; then ruby "$f"; else echo "ADMISSION=HOLD_DOWNLOAD_UNAVAILABLE PRODUCTION_WRITES=NONE"; fi; rm -f "$f" )
 ```
 
 这不是远程执行/实时验收；用户未实际运行之前只保留`DEVICE_ADMISSION=UNTESTED`。发生错误时不根据上一个版本的成功状态推断最新结果。用户只需将**不包含私有内容的匿名状态输出**返回，不需要提供完整配置、订阅URL、节点标签或IP。
