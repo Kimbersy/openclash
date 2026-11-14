@@ -61,6 +61,54 @@ class AiLiveRuleProviderReadOnlyTests < Minitest::Test
     assert_equal 9090,G.controller_port('127.0.0.1:9090')
     assert_equal 9090,G.controller_port('0.0.0.0:9090')
   end
+  def tcp_row(address, port, ino, status='0A')
+    "  0: #{address}:#{format('%04X',port)} 00000000:0000 #{status} 00000000:00000000 00:00000000 00000000 0 0 #{ino} 1 0000000000000000 100 0 0 10 0"
+  end
+
+  def test_ipv6_wildcard_owned_by_core_is_only_ipv4_mapped_candidate
+    port=9911
+    evidence=G.owner_class_from_rows(
+      [],[['IPV6_WILDCARD','444']],{'444'=>true})
+    assert_equal 'IPV6_WILDCARD_IPV4_CANDIDATE',evidence.first
+    assert_equal ['444'],evidence.last
+    assert_nil G.owner_class_from_rows([], [['IPV6_OTHER','444']],{'444'=>true})
+    assert_nil G.owner_class_from_rows([], [['IPV6_WILDCARD','444']],{})
+    assert_nil G.owner_class_from_rows([], [], {})
+  end
+
+  def test_no_unowned_ipv4_socket_may_receive_secret
+    assert_nil G.owner_class_from_rows(
+      [['IPV4_LOOPBACK','800']], [['IPV6_WILDCARD','900']], {'900'=>true})
+    assert_nil G.owner_class_from_rows([['IPV4_OTHER','800']],[], {'800'=>true})
+    p=G.owner_class_from_rows([['IPV4_LOOPBACK','800']],[], {'800'=>true})
+    assert_equal 'IPV4_CORE_SOCKET',p.first
+  end
+
+  def test_strict_ipv4_request_only_and_no_ipv6_fallback
+    script=File.read(File.join(__dir__,'../scripts/ai_live_rule_provider_readonly.rb'))
+    assert_includes script,"'--ipv4','--noproxy','*'"
+    assert_includes script,'http://127.0.0.1:'
+    refute_match(/http:\/\/\[::1\]|--ipv6|https:\/\/\[::1\]/,script)
+    assert_includes script,'HOLD_IPV4_LOCAL_API_UNAVAILABLE'
+    assert_includes script,'IPV6_WILDCARD_IPV4_CANDIDATE'
+    assert_includes script,'HOLD_CONTROLLER_OWNER_CHANGED'
+  end
+
+  def test_real_proc_socket_formats_are_identified_anonymously
+    require 'tempfile'
+    file=Tempfile.new('synth-proc')
+    begin
+      file.write("  sl  local_address rem_address st tx_queue rx_queue tr tm->when retrnsmt uid timeout inode\n")
+      file.write(tcp_row('00000000000000000000000000000000',9090,'445')+"\n")
+      file.write(tcp_row('00000000000000000000000001000000',9090,'446')+"\n")
+      file.flush
+      result=G.socket_rows(file.path,9090,v6:true)
+      assert_equal [['IPV6_WILDCARD','445'],['IPV6_OTHER','446']],result
+    ensure
+      file.close!
+    end
+  end
+
   def test_unsafe_secret_fails_before_any_curl_command
     assert_nil G.api_read("TOKEN\r\nheader: x",9090)
     assert_nil G.api_read('X'*513,9090)
