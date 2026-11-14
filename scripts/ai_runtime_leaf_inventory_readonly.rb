@@ -78,16 +78,55 @@ module AiRuntimeLeafNamesReadOnly
     nil
   end
 
-  def core_fd_sockets(pid)
-    entries = Dir["/proc/#{pid}/fd/*"]
-    return nil if entries.empty? || entries.length > 20_000
-    seen = {}
+  # Enumerating /proc/PID/fd is racy: temporary connection FDs can disappear
+  # between readdir and readlink. Only the actual target LISTEN inode proves
+  # ownership. Ignore ENOENT/EBADF on unrelated vanished FDs, NEVER infer
+  # ownership from an unreadable listener or a different socket.
+  def match_listener_fds(entries, target_inodes, reader = nil)
+    return nil unless entries.is_a?(Array) && !entries.empty? &&
+      entries.size <= 20_000 && target_inodes.is_a?(Array) &&
+      target_inodes.between?(1, 1000) &&
+      target_inodes.all? { |n| n.is_a?(String) && n.match?(/\A[0-9]+\z/) }
+    want = {}
+    target_inodes.each { |n| want[n] = true }
+    got = {}
+    reader ||= ->(fd) { File.readlink(fd) }
     entries.each do |fd|
-      link = File.readlink(fd)
-      match = /\Asocket:\[([0-9]+)\]\z/.match(link)
-      seen[match[1]] = true if match
+      begin
+        value = reader.call(fd)
+      rescue Errno::ENOENT, Errno::EBADF
+        # A closed non-listener FD is common during API activity. If the
+        # listener FD vanished, no matching inode will be found -> HOLD.
+        next
+      end
+      m = /\Asocket:\[([0-9]+)\]\z/.match(value)
+      got[m[1]] = true if m && want[m[1]]
     end
-    seen
+    got
+  rescue StandardError
+    nil
+  end
+
+  def core_fd_sockets(pid, target_inodes)
+    entries = Dir["/proc/#{pid}/fd/*"]
+    match_listener_fds(entries, target_inodes)
+  rescue StandardError
+    nil
+  end
+
+  def core_process_identity(pid)
+    exe = File.readlink("/proc/#{pid}/exe")
+    return nil unless exe.start_with?(CORE_ROOT)
+    ns = File.readlink("/proc/#{pid}/ns/net")
+    raw = File.binread("/proc/#{pid}/stat", 8192)
+    close = raw.rindex(')')
+    return nil unless close
+    # After "(comm)" fields start with state (Linux stat field 3);
+    # field 22 / starttime is zero-based index 19 in this suffix.
+    fields = raw[(close + 1)..-1].split
+    starttime = fields[19]
+    return nil unless starttime && starttime.match?(/\A[0-9]+\z/)
+    [exe, ns, starttime]
   rescue StandardError
     nil
   end
@@ -114,7 +153,10 @@ module AiRuntimeLeafNamesReadOnly
       File.readlink("/proc/#{pid}/ns/net")
     v4 = socket_rows("/proc/#{pid}/net/tcp", port)
     v6 = socket_rows("/proc/#{pid}/net/tcp6", port, v6: true)
-    fds = core_fd_sockets(pid)
+    return nil unless v4 && v6
+    listen_inodes = (v4 + v6).map(&:last)
+    return nil if listen_inodes.empty?
+    fds = core_fd_sockets(pid, listen_inodes)
     owner_class_from_rows(v4, v6, fds)
   rescue StandardError
     nil
@@ -236,13 +278,27 @@ module AiRuntimeLeafNamesReadOnly
       puts 'LEAF_INVENTORY_RESULT=HOLD_CONTROLLER_NON_LOOPBACK'
       return
     end
+    identity_before = core_process_identity(pid)
+    unless identity_before
+      puts 'LEAF_INVENTORY_RESULT=HOLD_CORE_IDENTITY_UNKNOWN'
+      return
+    end
     evidence = listener_evidence(pid,port)
     unless evidence
       puts 'LEAF_INVENTORY_RESULT=HOLD_CONTROLLER_OWNER_UNKNOWN'
       return
     end
     response = api_read(secret,port)
-    unless evidence == listener_evidence(pid,port)
+    unless identity_before == core_process_identity(pid)
+      puts 'LEAF_INVENTORY_RESULT=HOLD_CORE_PROCESS_CHANGED'
+      return
+    end
+    evidence_after = listener_evidence(pid,port)
+    unless evidence_after
+      puts 'LEAF_INVENTORY_RESULT=HOLD_CONTROLLER_OWNER_RECHECK_UNAVAILABLE'
+      return
+    end
+    unless evidence == evidence_after
       puts 'LEAF_INVENTORY_RESULT=HOLD_CONTROLLER_OWNER_CHANGED'
       return
     end
