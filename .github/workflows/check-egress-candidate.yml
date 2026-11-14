@@ -26,6 +26,7 @@ on:
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
+      - tests/test_istoreos_runtime_contract.py
       - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
@@ -106,6 +107,7 @@ on:
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
+      - tests/test_istoreos_runtime_contract.py
       - tests/make_ai_notebook_native_mihomo_fixture.py
       - tests/test_ai_notebook_one_core_probe_candidate.py
       - tests/test_ai_notebooklm_cta_light_probe.rb
@@ -328,6 +330,9 @@ jobs:
           chmod 700 /tmp/ai-probe-native/mihomo
           python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
           /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
+      - name: iStoreOS minimal-runtime dependency contract (real-device allowlist)
+        run: |
+          python -m unittest discover -s tests -p test_istoreos_runtime_contract.py -v
       - name: Router read-only Notebook preflight checks installed core and port without private logs
         run: |
           ruby -c scripts/ai_notebook_router_admission_readonly.rb
