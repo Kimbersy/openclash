@@ -50,6 +50,8 @@ on:
       - tests/test_ai_controller_socket_diagnostic_readonly.rb
       - scripts/ai_runtime_leaf_inventory_readonly.rb
       - tests/test_ai_runtime_leaf_inventory_readonly.rb
+      - scripts/ai_source_runtime_definitions_readonly.rb
+      - tests/test_ai_source_runtime_definitions_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -163,6 +165,8 @@ on:
       - tests/test_ai_controller_socket_diagnostic_readonly.rb
       - scripts/ai_runtime_leaf_inventory_readonly.rb
       - tests/test_ai_runtime_leaf_inventory_readonly.rb
+      - scripts/ai_source_runtime_definitions_readonly.rb
+      - tests/test_ai_source_runtime_definitions_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
       - tests/make_ai_cached_ruleset_native_fixture.py
       - tests/test_ai_rule_provider_inventory_readonly.rb
@@ -408,6 +412,10 @@ jobs:
         run: |
           ruby -c scripts/ai_controller_socket_diagnostic_readonly.rb
           ruby tests/test_ai_controller_socket_diagnostic_readonly.rb
+      - name: Selected source versus current running-core disk full proxy definitions no HTTP
+        run: |
+          ruby -c scripts/ai_source_runtime_definitions_readonly.rb
+          ruby tests/test_ai_source_runtime_definitions_readonly.rb
       - name: Current Mihomo IPv4-only leaf inventory with dynamic node and group exclusions
         run: |
           ruby -c scripts/ai_runtime_leaf_inventory_readonly.rb
