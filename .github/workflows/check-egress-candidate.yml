@@ -26,6 +26,8 @@ on:
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
       - scripts/ai_mihomo_version_only_readonly.rb
+      - scripts/ai_notebook_native_capability_test.rb
+      - tests/test_ai_notebook_native_capability_test.rb
       - tests/test_ai_mihomo_version_only_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/test_istoreos_runtime_contract.py
@@ -109,6 +111,8 @@ on:
       - scripts/ai_notebook_one_core_probe_candidate.py
       - scripts/ai_notebook_router_admission_readonly.rb
       - scripts/ai_mihomo_version_only_readonly.rb
+      - scripts/ai_notebook_native_capability_test.rb
+      - tests/test_ai_notebook_native_capability_test.rb
       - tests/test_ai_mihomo_version_only_readonly.rb
       - tests/test_ai_notebook_router_admission_readonly.rb
       - tests/test_istoreos_runtime_contract.py
@@ -334,6 +338,12 @@ jobs:
           chmod 700 /tmp/ai-probe-native/mihomo
           python tests/make_ai_notebook_native_mihomo_fixture.py /tmp/ai-probe-native/config.yaml
           /tmp/ai-probe-native/mihomo -t -f /tmp/ai-probe-native/config.yaml
+          ruby -e 'load ARGV[0]; print AiNotebookNativeCapability.synthetic_yaml' scripts/ai_notebook_native_capability_test.rb > /tmp/ai-probe-native/native-ruby.yaml
+          /tmp/ai-probe-native/mihomo -t -d /tmp/ai-probe-native -f /tmp/ai-probe-native/native-ruby.yaml
+      - name: Version-string-independent native -t capability gate with isolated synthetic fixture
+        run: |
+          ruby -c scripts/ai_notebook_native_capability_test.rb
+          ruby tests/test_ai_notebook_native_capability_test.rb
       - name: Real iStoreOS core version-only diagnostic, no stdout/stderr leakage
         run: |
           ruby -c scripts/ai_mihomo_version_only_readonly.rb
