@@ -44,6 +44,8 @@ on:
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_047151_postcommit_dryrun.py
+      - tests/test_ai_047151_postcommit_dryrun.py
       - scripts/ai_installed_updater_preflight_readonly.sh
       - scripts/ai_updater_sha1_core_readonly.sh
       - tests/test_ai_updater_sha1_core_readonly.rb
@@ -109,6 +111,8 @@ on:
       - tests/test_ai_proc_clock_readonly.rb
       - scripts/ai_refresh_causal_sequence.py
       - scripts/ai_openclash_updater_contract.py
+      - scripts/ai_047151_postcommit_dryrun.py
+      - tests/test_ai_047151_postcommit_dryrun.py
       - scripts/ai_installed_updater_preflight_readonly.sh
       - scripts/ai_updater_sha1_core_readonly.sh
       - tests/test_ai_updater_sha1_core_readonly.rb
@@ -236,6 +240,10 @@ jobs:
           printf '%s\n' "$output" | grep -q '^INSTALLED_UPDATER='
           printf '%s\n' "$output" | grep -q '^KERNEL_AT_CLKTCK='
           printf '%s\n' "$output" | grep -q '^UPDATER_PREFLIGHT=FINISHED PRODUCTION_WRITES=NONE'
+      - name: Minimal 0.47.151 postcommit failure and rollback DRY_RUN checks
+        run: |
+          python -m py_compile scripts/ai_047151_postcommit_dryrun.py
+          python -m unittest discover -s tests -p test_ai_047151_postcommit_dryrun.py -v
       - name: Exact upstream updater version and protected postcommit contract safety
         run: |
           python -m py_compile scripts/ai_openclash_updater_contract.py
