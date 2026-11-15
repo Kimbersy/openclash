@@ -28,13 +28,14 @@ ACTIVE_SUBSCRIPTIONS = ROOT / "scripts/ai_active_subscriptions_metadata_readonly
 PASSIVE_CANDIDATE = ROOT / "scripts/ai_refresh_passive_observer_candidate.rb"
 PASSIVE_PREFLIGHT = ROOT / "scripts/ai_refresh_observer_runtime_preflight_readonly.rb"
 UNATTENDED_SCHEDULE_PREFLIGHT = ROOT / "scripts/ai_unattended_schedule_capability_readonly.rb"
+FORK_SETSID_TRIAL = ROOT / "scripts/ai_unattended_fork_setsid_trial_readonly.rb"
 SOCKET_OWNER_DIAG = ROOT / "scripts/ai_controller_socket_diagnostic_readonly.rb"
 LIGHT = ROOT / "scripts/ai_notebooklm_cta_light_probe.rb"
 
 # The TTYD LoadError happened after successfully loading psych.
 DEVICE_CONFIRMED_RUBY_LIBRARIES = frozenset({"psych"})
 
-DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE, UNATTENDED_SCHEDULE_PREFLIGHT}
+DEVICE_CLI_ENTRYPOINTS = {ADMISSION, VERSION_ONLY, NATIVE, PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE, UNATTENDED_SCHEDULE_PREFLIGHT, FORK_SETSID_TRIAL}
 # 2026-11-14 23:35 real-device PASS: NOFOLLOW, private flock, monotonic, signals.
 # Only bounded foreground candidate (--probe / --observe) is admitted;
 # cron/procd/background installation remains forbidden and never CI-proven.
@@ -73,6 +74,15 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                     self.assertIn(guard, source)
                 self.assertNotIn("Process.spawn", source)
                 self.assertNotIn("require_relative", source)
+                self.assertNotIn("Net::HTTP", source)
+            if path == FORK_SETSID_TRIAL:
+                for guard in ("MAX_SECONDS = 4", "Process::WNOHANG",
+                              "Process.waitpid2", "Process.setsid",
+                              "DIRECT_CHILD_REAPED=", "BACKGROUND_SERVICE=NOT_INSTALLED",
+                              "PRODUCTION_CONFIG=UNCHANGED", "AUTO_SWITCH=OFF"):
+                    self.assertIn(guard, source)
+                self.assertNotIn("File.open(", source)
+                self.assertNotIn("IO.popen", source)
                 self.assertNotIn("Net::HTTP", source)
             if path == UNATTENDED_SCHEDULE_PREFLIGHT:
                 for guard in ("UNATTENDED_SCHEDULE_PREFLIGHT=START", "NO_HTTP=YES",
@@ -152,7 +162,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
                 self.assertIn("PRODUCTION_CONFIG=UNCHANGED", source)
                 self.assertNotIn("require 'psych'", source)
                 self.assertIn("LISTENER_INSTALLED=NO", source)
-            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE, UNATTENDED_SCHEDULE_PREFLIGHT):
+            elif path not in (PRIVATE_COPY, PROVIDER_INVENTORY, GEO_FLAGS_ONLY, CACHE_BYTECOPY, CACHE_STRUCTURE, CACHE_SIZE_PROFILE, TWO_CACHE_STATIC, LIVE_RULE_PROVIDER, SOCKET_OWNER_DIAG, RUNTIME_LEAF_INVENTORY, SOURCE_RUNTIME_DEFS, ACTIVE_SUBSCRIPTIONS, PASSIVE_PREFLIGHT, PASSIVE_CANDIDATE, UNATTENDED_SCHEDULE_PREFLIGHT, FORK_SETSID_TRIAL):
                 self.assertIn("IO.select", source)
                 self.assertIn("read_nonblock", source)
                 self.assertIn("PRODUCTION_WRITES=NONE", source)
@@ -202,6 +212,7 @@ class TestIstoreOSRuntimeContract(unittest.TestCase):
         self.assertIn("ai_refresh_passive_observer_candidate.rb", workflow)
         self.assertIn("ai_refresh_observer_runtime_preflight_readonly.rb", workflow)
         self.assertIn("ai_unattended_schedule_capability_readonly.rb", workflow)
+        self.assertIn("ai_unattended_fork_setsid_trial_readonly.rb", workflow)
         self.assertIn(PASSIVE_CANDIDATE, DEVICE_UNATTENDED_BG_BLOCKED_PENDING_DEVICE_PROOF)
 
 
