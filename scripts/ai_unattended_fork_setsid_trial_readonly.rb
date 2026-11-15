@@ -10,14 +10,17 @@ module AiUnattendedForkSetsidTrialReadOnly
   def run
     puts 'FORK_SESSION_TRIAL=START ONE_SHOT=YES NO_HTTP=YES'
     unless Process.respond_to?(:fork) && Process.respond_to?(:setsid) &&
-      Process.respond_to?(:waitpid2) && Process.const_defined?(:WNOHANG)
+      Process.respond_to?(:getsid) && Process.respond_to?(:waitpid2) &&
+      Process.const_defined?(:WNOHANG)
       puts 'FORK_SESSION_TRIAL_RESULT=HOLD_METHOD_UNAVAILABLE'
       return
     end
-    r,w=IO.pipe
+    r=nil
+    w=nil
     child_pid=nil
     reaped=false
     begin
+      r,w=IO.pipe
       child_pid=Process.fork do
         r.close
         success=false
