@@ -59,6 +59,8 @@ on:
       - tests/test_ai_refresh_unattended_control_candidate.rb
       - scripts/ai_unattended_schedule_capability_readonly.rb
       - tests/test_ai_unattended_schedule_capability_readonly.rb
+      - scripts/ai_unattended_fork_setsid_trial_readonly.rb
+      - tests/test_ai_unattended_fork_setsid_trial_readonly.rb
       - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
@@ -183,6 +185,8 @@ on:
       - tests/test_ai_refresh_unattended_control_candidate.rb
       - scripts/ai_unattended_schedule_capability_readonly.rb
       - tests/test_ai_unattended_schedule_capability_readonly.rb
+      - scripts/ai_unattended_fork_setsid_trial_readonly.rb
+      - tests/test_ai_unattended_fork_setsid_trial_readonly.rb
       - scripts/ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
       - tests/test_ai_ruleset_cached_offline_overlay.py
@@ -434,6 +438,10 @@ jobs:
         run: |
           ruby -c scripts/ai_refresh_observer_runtime_preflight_readonly.rb
           ruby tests/test_ai_refresh_observer_runtime_preflight_readonly.rb
+      - name: Single-child short fork and setsid trial is reaped with no OpenClash changes
+        run: |
+          ruby -c scripts/ai_unattended_fork_setsid_trial_readonly.rb
+          ruby tests/test_ai_unattended_fork_setsid_trial_readonly.rb
       - name: Single-shot no-fork update hour and Ruby method availability runtime preflight
         run: |
           ruby -c scripts/ai_unattended_schedule_capability_readonly.rb
