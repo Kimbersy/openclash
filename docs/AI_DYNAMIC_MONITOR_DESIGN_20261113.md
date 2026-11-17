@@ -1,0 +1,81 @@
+# AI 动态节点池与稳态切换：订阅每日更新后的正式运行架构（设计未部署）
+
+> 2026-11-13 用户纠正：**不要继续手动批量扫58个节点**；机场持续调整、OpenClash订阅每日更新，AI节点应在实际使用期间自动识别变更、低负载健康监测、按地区/服务维护可用池，并可靠、不过度地故障切换。此规范覆盖此前一次性“START=... COUNT=4扫完58”交付优先级；已验收到的01–11真实回执只作初筛历史证据。
+
+## 可验收目标
+
+1. OpenClash现有订阅更新按用户已配置的计划进行，不由AI组件独立频繁请求订阅地址。**只在更新成功且新的实际Mihomo运行配置已生效之后**进行一次来源一致性及节点差异核对；失败更新/半写配置则保持上一份可信状态，不把未生效的文件当新候选。
+2. 覆盖所有已启用、生效的机场来源（目前实机一段订阅配置含58个内嵌节点、0 Provider；未来数目可以增减、也可引入Provider），不受旧🤖 AI策略组13成员限制。私有目录存源快照和每节点完整连接参数指纹，不以序号或展示名称作身份。节点的服务器/端口/密码/TLS/传输任何字段变化都视为**新身份**。
+3. 对新增/换线节点只进行轻量网络资格与真实出口初筛；未变化节点保留近期健康统计和已核对的服务资格，但一旦过期或平台/账号行为出现反例，降级为UNKNOWN或DEGRADED，按需重测；删除节点从候选池下架并处理所选节点消失的情况。订阅格式/顺序/注释变化如未改变节点连接定义，不应误删所有历史质量记录。
+4. 动态健康检查按负载和风险分层：当前AI使用线路低频检测与实际连接异常信号结合；已验证备线以较低频率确认仍健康；新节点在空闲/有界预算内逐个初始化；不对全部节点每几分钟同时探测三个AI网站。监测密度、并发、网络用量可配置、按服务后台可用性做退避。默认**只读DRY_RUN**，不更改现有策略组。
+5. 独立记录 ChatGPT、Gemini、NotebookLM 的资格：`UNKNOWN / NETWORK_CANDIDATE / BUSINESS_VERIFIED / DEGRADED / BLOCKED`+节点完整指纹+来源与时间/有效期；HTTP200/301或NotebookLM的应用入口不是VERIFIED。对NotebookLM需在**实际浏览器、同一实际出口、同一AI分流、真实Google账号**核验工作区进入、来源导入和问答；自动探测只能发现`unsupported`、连接异常等负面/网络线索，不冒充登录后成功。
+6. 用户能够选**全局AI稳态**或**指定真实出口国家的AI稳态组**；选定TW时只在已确认TW、该平台业务合格且当前健康的节点内切，找不到备用则保留/报警，不跨国。人工固定节点时自动切换暂停。节点快只影响初选/故障备线排序，当前健康不因另一个快一点就抢线。
+7. 故障接替必须按独立证据判定：单个请求慢或403/429/平台服务异常不能立即切；同一节点经过多次不同目标的网络失败、备用最近有健康证据、当前不在冷却/用户手动模式，才在**受控的AI专用子select组**建议一次切换。断线/重连期间要保存及恢复被保护的用户选择，不对父🤖AI、普通流媒体、Disney、Worker执行PUT。
+8. 生产保持**一套Mihomo核心**；孤立网站/账号探测不得产生长期第二核心。未来需要精确校验OpenClash的注入/订阅合并点与reload效果，提供回滚和实际AI体验回执后才授权开启有限自动化。定时检查/任务管理脚本必须可停止、重入安全、避免重复cron/僵尸守护进程。
+
+## 事件流：更新后 + 使用中
+
+```text
+机场订阅按原OpenClash计划成功更新
+  -> 安全门：正式运行核心已载入该版本、原始/活动节点集合勾稽通过
+  -> 比较私有前后manifest（完整节点参数指纹，不是节点序号）
+  -> [未变]复用有效业务/健康记录，时间到期才复检
+     [新增/参数改变]标UNKNOWN，入低优先级有限流量初筛
+     [已删]从合格池移除；若当前节点被删则只在同地区/服务寻找已验证备线
+  -> 生成只读候选池/各国家组/性能排行并DRY_RUN
+  -> 用户启用后仅在专用AI组进行受控选择；每次变更需操作回执
+
+使用中：低频观察当前AI线路 / 维护少量已验证备线
+  -> HEALTHY：保持，绝不因测速排名抢线
+  -> SUSPECT：分目标复核，错误分类（平台、账号、地区、节点网络）
+  -> DEGRADED：连续可信节点故障 + 可靠备线 + 无手动锁/冷却
+  -> SWITCH（仅用户已选择的AI受控组） -> COOLDOWN
+```
+
+**注意**：Mihomo普通健康检查通常测通用204/延迟，不能说明ChatGPT/Gemini/NotebookLM真实业务。Mihomo `proxy-providers.health-check.lazy`、普通Proxy Group的`lazy/interval`可降低无用探测，但目前用户活动配置`PROVIDERS_DECLARED=0`，所以不能误称现网已使用Provider健康检查。现阶段以轻量观察/限速探测设计为主，只有通过稳定性验证后再决定是否复用Mihomo内建机制。参见：https://wiki.metacubex.one/en/config/proxy-providers/ 和 https://wiki.metacubex.one/en/config/proxy-groups/ 。
+
+## 实现边界、状态与节流（设计初值，部署前可调整）
+
+| 类别 | 推荐触发/处理 | 防止的问题 |
+|---|---|---|
+| 来源变更核验 | OpenClash成功合并/正式核心生效事件优先；如无可靠钩子，轻量间隔轮询正式活动配置元数据并二次确认稳定 | 未完成更新被误当生效；无理由重复下载机场 |
+| 当前线路 | 只读/低频心跳，初始每5–10分钟的**设计参数**；真实业务失败触发短时复核 | 盲目连发HTTP或健康误切 |
+| 备用已合格线路 | 首选少量热备，初始每20–60分钟（设计参数） | 正线坏了才发现备用早已失效 |
+| 其他线路 | 仅新/改/资格过期/低谷需要时排队，最多1个隔离网络探测并明确总流量预算 | 58节点×3网站高频烧资源，机场限流 |
+| 服务/地区资格 | 数据带完整连接指纹、服务、观察时间、来源、质量分数和置信度；缺少业务实测只能NETWORK_CANDIDATE | 用HTTP200/301误把受限地区当可用 |
+| 故障切换 | 连续多次、不同目标复核、最近有效备线、最短驻留和冷却、人工锁；平台统一异常全组停止盲换 | 一直不切或不断来回抢线 |
+
+上述分钟数为**建议初值而非已部署事实**。是否允许HTTP业务主动检查需有实际网络安全/限额评估。TLS加密的真实账号业务响应不能仅靠Mihomo流量统计推断；账号登录后NotebookLM实际可用必须依赖浏览器实际操作或有授权且合规的端到端检测，不能读取用户私密内容。
+
+## 已有能力与仍需开发
+
+- 已有：源配置与运行定义58节点一致真实回执、01–11个原序号网络初筛（均隔离清理PASS）、Node01出口GB、09–11出口TW、08 IPinfo查询失败；01、05、08–11部分NotebookLM到达应用入口但**全部BUSINESS=UNKNOWN**；08–11本次源短指纹`0c95fea44d2688e0`。
+- 已有候选代码：`scripts/reconcile_subscription.py`可基于全参数生成私有manifest、比较增/删/同名换线，`scripts/ai_regional_pools.rb`实现服务/地区质量分组与离线切换决策，`scripts/ai_network_batch_once.sh`仅用于**开发/问题定点复测**。这些未接到每日订阅事件或长期调度器。
+- **缺口A**：能辨认“真正更新成功且运行已生效”的事件/安全门，防止每天订阅刷新抹掉老记录；不能直接挂在下载请求完成或文件mtime上。
+- **缺口B**：以完整fingerprint为核心的持久质量记录及增量资格队列，显式撤销同名换线路的旧NotebookLM/其他平台业务合格标签；超时、刷新、平台变化不导致全量扫描风暴。
+- **缺口C**：一套生命周期可控的低频/自适应采样任务和故障判断状态机，先DRY_RUN至少覆盖两个真实订阅刷新周期，再由用户批准灰度启用。
+- **缺口D**：在OpenClash候选配置生成点实现动态地区/服务受控select组成员更新；Mihomo单次“选择节点”的API不等同于向运行中增加代理或新建分组，避免错误承诺。
+- **缺口E**：验证实际Chrome/Google登录跨域及NotebookLM工作区，保证分流链始终采用相同出口；保持IPv4_ALL controller的现网网络边界只读核验待办。
+
+## 三端共用一个订阅转换的实施边界（用户新增硬性要求）
+
+- 用户确认：iStoreOS/OpenClash、Android Clash Mate、iOS/iPadOS Shadowrocket **三端共用一套订阅转换**。不能再假设手机订阅独立、修改公共`Clash-Li.ini`/`AI.list`不影响移动端。一个源可以生成终端适配结果，但不能把路由器专有控制组和API绑定推到所有客户端。
+- 三端隔离的完整契约在[`AI_THREE_CLIENT_COMPATIBILITY_20261113.md`](AI_THREE_CLIENT_COMPATIBILITY_20261113.md)，固定Git发布基线由`tests/test_shared_three_client_contract.py`保护，相关候选Git提交`83f7e1166064f507177e7baa298ccdb421cbf5ed`、Actions #43420258061 success。候选分支先前改变公共`AI.list`的`DOMAIN,notebook.google`已经撤销，公共转换三文件与已发布main保持同字节。
+- 动态状态/节点指纹/AI资格/防抖切换只能落到家中iStoreOS的本机私有后处理，不能通过公共主分支或Cloudflare Worker/KV同步至安卓Clash Mate、苹果Shadowrocket。安卓继续沿用现有转换，苹果端最终输出格式及导入兼容性必须单独真机核实；离线CI通过≠手机端验收通过。家庭Wi-Fi下两层代理交互需实机检查，外部4G/5G手机应不受路由器API控制。
+- 因为目前还没有证明OpenClash可在订阅转换后安全注入本地专用策略组，**不能先改公共转换模板凑功能**。后续以本机可逆、可回滚的独立覆盖层及受控单一Mihomo为主，先DRY_RUN，不改当前家庭网络选线。
+
+## 2026-11-13 20:55 UTC+8 实机只读更新机制回执与三重安全门
+
+- **设备原始回执（用户TTYD截图，尚未操作生产）**：固定只读脚本`ai_refresh_schedule_readonly.rb`显示`SCHEDULE_AUTO_UPDATE=ENABLED MODE=APPOINTMENT CADENCE=DAILY`、`SCHEDULE_SETTINGS=READ_ONLY`、`SOURCE_DISK=READABLE RUNTIME_CONFIG_DISK=READABLE`、`SOURCE_FILE_AGE=LT7D`、`SOURCE_RUNTIME_DISK_DEFINITIONS=MATCH`；同时`REMOTE_UPDATE_SUCCESS=UNVERIFIED`、`Mihomo_RELOAD_CONFIRMED=NO`、`AI_MONITOR_INSTALLED=NO`。**后两个NO是脚本显式的“未核验/未安装”信号，不是Mihomo重载失败的事实。** 可确证每天自动更新设置已启用、文件层节点定义匹配；不可从mtime或磁盘等价推出远程下载成功或内核内存新生效。
+- **上游OpenClash实现证据**：读取官方`vernesong/OpenClash/luci-app-openclash/root/usr/share/openclash/openclash.sh`的`config_su_check`，找到`Update Successful!`、`No Change, Do Nothing!`、`Update Error`逻辑和`dec_job_counter_and_restart "$restart"`在最后；`Update Successful!`字符串紧跟`mv`尝试且未严格检验`mv`退出码，所以**仅日志成功标记不能作可信最终业务更新回执**。官方`config-subscribe.lua`确认`auto_update`、`config_auto_update_mode`、`config_update_week_time`含每天周期。上游源码URL：https://raw.githubusercontent.com/vernesong/OpenClash/master/luci-app-openclash/root/usr/share/openclash/openclash.sh 。需以用户iStoreOS所装版本为准，不能直接断言其与当前上游逐字节相同。
+- **新的纯离线判定器**：`scripts/ai_refresh_transition_gate.py`+`tests/test_ai_refresh_transition_gate.py`（本PR候选）通过完整人工证据状态分类：更新事件`UPDATED/NO_CHANGE/ERROR/UNKNOWN`、源配置变化/文件与运行磁盘定义、活跃API可达/运行会员一致、**独立且关联到同一源指纹的真实内存重载证明**、最少2次稳定样本、非AI配置diff=0。数据不足全部HOLD，不因每日定时启用或GET/proxies名字相同就视为新凭据已被内核加载；在全部成立时只给`PLAN_INCREMENTAL_AI_ONLY`，**绝不写配置、更新资格状态、切换节点或扩大到非AI流量**。未发布。
+- **当前唯一工程下一步**：建立不泄露订阅URL、节点IP/密码、Mihomo secret的只读**真正更新事件+运行态证明采集器**，在原OpenClash正常更新时间完成后的候选观察中核验当前生效源的身份/更新完成（不能主动触发订阅重下或重载），对有必要的设备只取得一次匿名回执；证据通过后以既有动态manifest和三端AI-only生成器接出可停单实例DRY_RUN。未确认订阅更新成功和内核加载，禁止启动任何自动切换。
+## 2026-11-13：新增 Mihomo 控制接口匿名实时目录核验（只读，待实机）
+- 官方 Mihomo `GET /proxies` 可读取进程**当前内存中的代理名称与类型**；这比已通过的源YAML与运行YAML磁盘定义相等再前进一层，却仍**不能**证明服务器、密码、TLS及传输参数均实际热加载，也不能证明机场远程订阅成功。
+- 候选 `scripts/ai_live_membership_readonly.rb` 只在 /proc 精确找到一个正式 OpenClash 核心、确认 PID 独占的 127.0.0.1 controller监听端口后，通过curl GET本地 `/proxies`。秘钥仅在进程内存和curl标准输入，不通过命令参数、日志、公共仓库输出；原节点名称、IP和接口端口亦不回传。不得使用PUT/DELETE或触发provider健康检查。
+- 与现网原始活动配置核对**内嵌节点名称集合**，只有全部相同才输出 `EXACT_NAMES_ONLY`。遇到未来Provider节点、控制接口不在支持的本地形式、身份/监听端口不唯一或API无法读取时明确 BLOCK/UNAVAILABLE，**不强行认定运行失效或重载成功**。接口探针绝不修改现有AI/普通/流媒体/Disney规则和三端订阅。
+- 如果用户实机通过该probe，也只是能证实`运行中的API名字目录包含所有预期节点`；远端更新成功及**配置参数级别的运行身份**仍按`ai_refresh_event_gate.py`严格阻断，不能把GET /proxies的同名验证硬充为 reload verified。独立验收后的下一步才研究OpenClash订阅提交完成的事件/运行核心完整参数证明，并在确认成功前保持DRY_RUN。
+
+## 唯一下一步
+
+**先开发增量变更→资格继承/失效→按需重测的纯离线调度器和合成回归**（新增/删除/同名换线/仅排序变化/下载失败/运行未生效/人工固定/连续失败/冷却）。固定Git提交并CI成功后，做**只读**设备核验：OpenClash正常每日更新的成功回执与实际运行版本同步状态，确认适合哪种钩子/轮询机制。**暂停剩余47节点的人工批次，不要求用户继续TTYD反复测。** 完成DRY_RUN和实际业务验收后再考虑自动控制，所有生产设置现阶段保持不动。
