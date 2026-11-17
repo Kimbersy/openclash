@@ -415,6 +415,8 @@ module AiRuntimeLeafNamesReadOnly
     return [nil,'HOLD_CONNECTIONS_LAYOUT'] unless data.is_a?(Hash) &&
       data['connections'].is_a?(Array) &&
       data['connections'].length <= MAX_ACTIVE_CONNECTIONS
+    return [nil,'HOLD_CONNECTIONS_LAYOUT'] unless data['connections'].all?{|r|
+      r.is_a?(Hash) && r['metadata'].is_a?(Hash)}
     leaves=snapshot['leaves']
     groups=snapshot['groups']
     return [nil,'HOLD_EXPECTED_LAYOUT'] unless leaves.uniq==leaves &&
@@ -429,6 +431,10 @@ module AiRuntimeLeafNamesReadOnly
       next unless meta['sourceIP']==source
       hosts=[meta['host'],meta['sniffHost']].select{|h|h.is_a?(String) && !h.empty?}
       targets=hosts.map{|h|target_service(h)}.compact.uniq
+      if targets.any? && [meta['host'],meta['sniffHost']].any?{|h|!h.nil? && !h.is_a?(String)}
+        targets.each{|svc|errors[svc]=true}
+        next
+      end
       next if targets.empty?
       targets.each do |svc|
         if targets.length!=1 || hosts.any?{|h|target_service(h)!=svc}
@@ -538,7 +544,8 @@ module AiRuntimeLeafNamesReadOnly
       return
     end
     data=active_connections_read(secret,port)
-    unless identity==core_process_identity(pid) && owner==listener_evidence(pid,port)
+    unless candidate_core==core && identity==core_process_identity(pid) &&
+      owner==listener_evidence(pid,port)
       puts 'AI_FLOW_RESULT=HOLD_CORE_OR_CONTROLLER_CHANGED'
       return
     end
