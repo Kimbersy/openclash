@@ -22,12 +22,12 @@ def with_subscription_snapshot(inv: dict) -> dict:
 class EgressAuditTests(unittest.TestCase):
     def setUp(self):
         self.tw = [
-            {"source": "ipinfo", "ip": "203.0.113.8", "country": "TW"},
-            {"source": "ipapi", "ip": "203.0.113.8", "country": "TW"},
+            {"source": "ipinfo", "ip": "8.8.8.8", "country": "TW"},
+            {"source": "ipapi", "ip": "8.8.8.8", "country": "TW"},
         ]
         self.hk = [
-            {"source": "ipinfo", "ip": "203.0.113.9", "country": "HK"},
-            {"source": "ipapi", "ip": "203.0.113.9", "country": "HK"},
+            {"source": "ipinfo", "ip": "1.1.1.1", "country": "HK"},
+            {"source": "ipapi", "ip": "1.1.1.1", "country": "HK"},
         ]
 
     def test_label_parser_and_ambiguity(self):
@@ -79,7 +79,7 @@ class EgressAuditTests(unittest.TestCase):
         self.assertEqual(egress.classify("IPLC", self.tw, [])["status"], "unknown")
         self.assertTrue(egress.classify("IPLC", self.tw, [])["egress_verified"])
         self.assertIsNone(egress.classify("台湾01", self.tw[:1], [])["observed_country"])
-        diff_ip = [self.tw[0], {**self.tw[1], "ip": "203.0.113.7"}]
+        diff_ip = [self.tw[0], {**self.tw[1], "ip": "8.8.4.4"}]
         self.assertEqual(egress.classify("台湾01", diff_ip, [])["status"], "inconsistent")
         diff_country = [self.tw[0], {**self.tw[1], "country": "US"}]
         self.assertEqual(egress.classify("台湾01", diff_country, [])["status"], "inconsistent")
@@ -94,6 +94,45 @@ class EgressAuditTests(unittest.TestCase):
         self.assertEqual(out["source_node_count"], 1)
         with self.assertRaises(ValueError):
             egress.audit({"schema_version": 1, "nodes": inv["nodes"]})
+
+    def test_ipv6_and_nonpublic_ip_must_never_certify_ipv4_p0(self):
+        for ip in ("2001:4860:4860::8888", "2001:db8::1",
+                   "::ffff:8.8.8.8", "192.168.1.1",
+                   "203.0.113.8", "10.0.0.2", "127.0.0.1"):
+            evidence = [
+                {"source": "ipinfo", "ip": ip, "country": "TW"},
+                {"source": "ipapi", "ip": ip, "country": "TW"},
+            ]
+            record = egress.classify("台湾01", evidence, [])
+            self.assertFalse(record["egress_verified"], ip)
+            self.assertEqual(record["status"], "unknown")
+            self.assertEqual(record["reason"], "nonpublic_or_non_ipv4_egress")
+            self.assertEqual(record["observed_ips"], [])
+
+    def test_exactly_two_error_free_independent_ipv4_providers(self):
+        good = self.tw
+        duplicate = [good[0], good[0]]
+        mixed = good + [good[0]]
+        for sample in (duplicate, mixed, [good[0]], []):
+            result = egress.classify("台湾01", sample, [])
+            self.assertFalse(result["egress_verified"])
+            self.assertEqual(result["reason"], "insufficient_or_duplicate_sources")
+        with_error = egress.classify("台湾01", good, ["ipapi:TimeoutError"])
+        self.assertFalse(with_error["egress_verified"])
+        self.assertEqual(with_error["reason"], "probe_errors_present")
+        invalid_country = egress.classify("台湾01", [good[0], {**good[1], "country": "??"}], [])
+        self.assertFalse(invalid_country["egress_verified"])
+        self.assertEqual(invalid_country["reason"], "invalid_country")
+
+    def test_valid_public_ipv4_remains_supported(self):
+        self.assertTrue(egress.is_public_ipv4("8.8.8.8"))
+        self.assertTrue(egress.is_public_ipv4("1.1.1.1"))
+        self.assertFalse(egress.is_public_ipv4("2001:4860:4860::8888"))
+        self.assertFalse(egress.is_public_ipv4("203.0.113.1"))
+        self.assertFalse(egress.is_public_ipv4(None))
+        verified = egress.classify("台湾01", self.tw, [])
+        self.assertEqual(verified["status"], "match")
+        self.assertTrue(verified["egress_verified"])
 
     def test_loopback_only_no_credentials(self):
         for valid in ("http://127.0.0.1:8081", "http://localhost:8000", "http://[::1]:8999"):
