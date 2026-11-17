@@ -371,4 +371,203 @@ module AiRuntimeLeafNamesReadOnly
 
 end
 
-AiRuntimeLeafNamesReadOnly.run if __FILE__ == $PROGRAM_NAME
+
+# Optional one-shot private-source connection classification. The original
+# no-args /proxies census retains identical behavior and evidence boundaries.
+# Never output source IP, host, leaf name, chain, raw connection or API token.
+module AiRuntimeLeafNamesReadOnly
+  module_function
+  MAX_ACTIVE_CONNECTIONS = 4000
+  AI_SERVICES = %w[CHATGPT GEMINI NOTEBOOKLM].freeze
+
+  def allowed_source_ipv4?(value)
+    return false unless value.is_a?(String)
+    octets=value.split('.',-1)
+    return false unless octets.length==4 &&
+      octets.all? { |o| o.match?(/\A(?:0|[1-9][0-9]{0,2})\z/) && o.to_i<=255 }
+    a,b=octets.map(&:to_i)
+    a==10 || (a==172 && b.between?(16,31)) ||
+      (a==192 && b==168) || (a==100 && b.between?(64,127))
+  end
+
+  def normalized_target_host(value)
+    return nil unless value.is_a?(String) && value.bytesize.between?(1,253)
+    host=value.downcase
+    host=host[0...-1] if host.end_with?('.')
+    return nil unless host.match?(/\A[a-z0-9]+(?:[.-][a-z0-9]+)*\z/)
+    host
+  end
+
+  def target_service(value)
+    host=normalized_target_host(value)
+    return nil unless host
+    return 'CHATGPT' if host=='chatgpt.com' || host.end_with?('.chatgpt.com')
+    return 'GEMINI' if host=='gemini.google.com'
+    return 'NOTEBOOKLM' if host=='notebooklm.google.com'
+    nil
+  end
+
+  def private_connection_classification(snapshot, data, source)
+    return [nil,'HOLD_SOURCE_NOT_PRIVATE_IPV4'] unless allowed_source_ipv4?(source)
+    return [nil,'HOLD_EXPECTED_LAYOUT'] unless snapshot.is_a?(Hash) &&
+      snapshot['leaves'].is_a?(Array) && snapshot['groups'].is_a?(Array) &&
+      snapshot['groups'].include?('🤖 AI')
+    return [nil,'HOLD_CONNECTIONS_LAYOUT'] unless data.is_a?(Hash) &&
+      data['connections'].is_a?(Array) &&
+      data['connections'].length <= MAX_ACTIVE_CONNECTIONS
+    leaves=snapshot['leaves']
+    groups=snapshot['groups']
+    return [nil,'HOLD_EXPECTED_LAYOUT'] unless leaves.uniq==leaves &&
+      groups.uniq==groups && (leaves & groups).empty?
+    matches=AI_SERVICES.to_h{|svc|[svc,[]]}
+    errors=AI_SERVICES.to_h{|svc|[svc,false]}
+    data['connections'].each do |conn|
+      # Unknown rows may be OTHER family traffic. Never inspect or emit
+      # domains/source IP for a different LAN client.
+      next unless conn.is_a?(Hash) && conn['metadata'].is_a?(Hash)
+      meta=conn['metadata']
+      next unless meta['sourceIP']==source
+      hosts=[meta['host'],meta['sniffHost']].select{|h|h.is_a?(String) && !h.empty?}
+      targets=hosts.map{|h|target_service(h)}.compact.uniq
+      next if targets.empty?
+      targets.each do |svc|
+        if targets.length!=1 || hosts.any?{|h|target_service(h)!=svc}
+          errors[svc]=true
+          next
+        end
+        chain=conn['chains']
+        unless chain.is_a?(Array) && chain.length.between?(2,16) &&
+          chain.all?{|n|n.is_a?(String) && n.bytesize.between?(1,256)} &&
+          chain.uniq==chain &&
+          chain.include?('🤖 AI') &&
+          chain.all?{|n|leaves.include?(n)||groups.include?(n)}
+          errors[svc]=true
+          next
+        end
+        resolved=chain.select{|n|leaves.include?(n)}.uniq
+        if resolved.length!=1
+          errors[svc]=true
+        else
+          matches[svc] << resolved.first
+        end
+      end
+    end
+    statuses={}
+    observed={}
+    AI_SERVICES.each do |svc|
+      names=matches[svc].uniq
+      statuses[svc]=if errors[svc]
+        'HOLD_AMBIGUOUS_CONNECTION'
+      elsif names.empty?
+        'HOLD_NO_ACTIVE_CONNECTION'
+      elsif names.length!=1
+        'HOLD_MULTIPLE_LEAVES'
+      else
+        observed[svc]=names.first
+        'OBSERVED_ONE_LEAF_CANDIDATE'
+      end
+    end
+    outcome=if statuses.values.all?{|v|v=='OBSERVED_ONE_LEAF_CANDIDATE'}
+      observed.values.uniq.length==1 ? 'SAME_LEAF_ANONYMOUS_CANDIDATE_ONLY' : 'HOLD_DIFFERENT_SERVICE_LEAVES'
+    else
+      'HOLD_INCOMPLETE_SAME_LEAF_EVIDENCE'
+    end
+    [{status:statuses, result:outcome},'ANONYMOUS_CLASSIFICATION_READY']
+  end
+
+  def active_connections_read(secret,port)
+    return nil unless secret.is_a?(String) && secret.bytesize<=512 &&
+      !secret.match?(/[\x00-\x1f\x7f]/)
+    argv=['curl','-q','--ipv4','--noproxy','*','--silent','--fail',
+      '--connect-timeout','2','--max-time','7',
+      '--max-filesize',MAX_RESPONSE_BYTES.to_s,
+      '--proto','=http','--max-redirs','0',
+      '--request','GET','--config','-',
+      "http://127.0.0.1:#{port}/connections"]
+    body=''
+    IO.popen(argv,'r+',err:File::NULL) do |io|
+      unless secret.empty?
+        escaped=secret.gsub(/[\\"]/) {|c|'\\'+c}
+        io.write("header = \"Authorization: Bearer #{escaped}\"\n")
+      end
+      io.close_write
+      body=io.read(MAX_RESPONSE_BYTES+1)
+    end
+    return nil unless $?.success? && body.bytesize.between?(2,MAX_RESPONSE_BYTES)
+    parsed=Psych.safe_load(body,aliases:false)
+    parsed.is_a?(Hash) ? parsed : nil
+  rescue StandardError
+    nil
+  end
+
+  def run_connections(source)
+    puts 'AI_ACTIVE_CONNECTION=START ONE_SHOT_GET_ONLY_IPV4=YES'
+    unless allowed_source_ipv4?(source)
+      puts 'AI_FLOW_RESULT=HOLD_SOURCE_NOT_PRIVATE_IPV4'
+      return
+    end
+    core=candidate_core
+    unless core
+      puts 'AI_FLOW_RESULT=HOLD_CORE_NOT_UNIQUE'
+      return
+    end
+    pid,argv,conf=core
+    raw=File.binread(conf,MAX_CONFIG_BYTES+1)
+    unless raw.bytesize.between?(1,MAX_CONFIG_BYTES)
+      puts 'AI_FLOW_RESULT=HOLD_CONFIG_SIZE'
+      return
+    end
+    cfg=Psych.safe_load(raw,aliases:false)
+    snapshot,gate=expected_leaf_snapshot(cfg)
+    unless snapshot
+      puts "AI_FLOW_RESULT=#{gate}"
+      return
+    end
+    port=controller_port(flag(argv,'-ext-ctl') || cfg['external-controller'])
+    secret=flag(argv,'-secret') || cfg['secret'] || ''
+    identity=core_process_identity(pid)
+    owner=port && listener_evidence(pid,port)
+    unless identity && owner
+      puts 'AI_FLOW_RESULT=HOLD_CONTROLLER_OWNER_OR_CORE_UNVERIFIED'
+      return
+    end
+    proxies=api_read(secret,port)
+    coverage,coverage_status=compare_snapshot(snapshot,proxies)
+    unless coverage_status=='LIVE_LEAF_NAME_COVERAGE_PASS'
+      puts 'AI_FLOW_RESULT=HOLD_LIVE_LEAF_COVERAGE'
+      return
+    end
+    data=active_connections_read(secret,port)
+    unless identity==core_process_identity(pid) && owner==listener_evidence(pid,port)
+      puts 'AI_FLOW_RESULT=HOLD_CORE_OR_CONTROLLER_CHANGED'
+      return
+    end
+    result,gate=private_connection_classification(snapshot,data,source)
+    unless result
+      puts "AI_FLOW_RESULT=#{gate}"
+      return
+    end
+    AI_SERVICES.each{|svc|puts "AI_FLOW_#{svc}=#{result[:status][svc]}"}
+    puts "AI_FLOW_RESULT=#{result[:result]}"
+  rescue StandardError
+    puts 'AI_FLOW_RESULT=HOLD_RUNTIME'
+  ensure
+    puts 'PRIVATE_SOURCE_HOSTS_LEAVES_CHAINS_AND_RAW_JSON=NOT_EMITTED'
+    puts 'SAME_LEAF_AUTHENTICATED=NO LIVE_FULL_CREDENTIAL_FINGERPRINTS=NOT_VERIFIED'
+    puts 'DUAL_PUBLIC_IPV4_EXIT=NOT_VERIFIED BUSINESS_VERIFIED=NO'
+    puts 'ALLOW_RECONCILE=NO ALLOW_SWITCH=NO'
+    puts 'PRODUCTION_CONFIG=UNCHANGED PROVIDER_REFRESH=NOT_RUN LISTENER_INSTALLED=NO AUTO_SWITCH=OFF'
+  end
+end
+
+if __FILE__==$PROGRAM_NAME
+  if ARGV.empty?
+    AiRuntimeLeafNamesReadOnly.run
+  elsif ARGV.length==2 && ARGV[0]=='--connections-source'
+    AiRuntimeLeafNamesReadOnly.run_connections(ARGV[1])
+  else
+    puts 'AI_FLOW_RESULT=HOLD_NOT_ARMED'
+    puts 'PRODUCTION_CONFIG=UNCHANGED PROVIDER_REFRESH=NOT_RUN LISTENER_INSTALLED=NO AUTO_SWITCH=OFF'
+  end
+end
+
