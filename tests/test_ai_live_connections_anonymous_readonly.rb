@@ -118,6 +118,10 @@ class AiLiveConnectionsAnonymousReadOnlyTests < Minitest::Test
     result,_=classify(rows)
     assert_equal 'HOLD_AMBIGUOUS_CONNECTION',result[:status]['CHATGPT']
     rows=all_three
+    rows[0]['metadata']['sniffHost']={'untrusted'=>'fake'}
+    result,_=classify(rows)
+    assert_equal 'HOLD_AMBIGUOUS_CONNECTION',result[:status]['CHATGPT']
+    rows=all_three
     rows[1]['metadata']['host']='gemini.google.com.attacker.tld'
     result,_=classify(rows)
     assert_equal 'HOLD_NO_ACTIVE_CONNECTION',result[:status]['GEMINI']
@@ -134,6 +138,12 @@ class AiLiveConnectionsAnonymousReadOnlyTests < Minitest::Test
       {'leaves'=>[LEAF], 'groups'=>['OTHER']},{'connections'=>all_three},SOURCE)
     assert_nil result
     assert_equal 'HOLD_EXPECTED_LAYOUT',gate
+    result,gate=classify(all_three+[{'metadata'=>nil,'chains'=>[LEAF,'🤖 AI']}])
+    assert_nil result
+    assert_equal 'HOLD_CONNECTIONS_LAYOUT',gate
+    result,gate=classify(all_three+[{'random'=>'invalid'}])
+    assert_nil result
+    assert_equal 'HOLD_CONNECTIONS_LAYOUT',gate
     result,gate=G.private_connection_classification(
       expected,{'connections'=>Array.new(G::MAX_ACTIVE_CONNECTIONS+1)},SOURCE)
     assert_nil result
@@ -192,6 +202,7 @@ class AiLiveConnectionsAnonymousReadOnlyTests < Minitest::Test
     assert_includes text,"'--request','GET'"
     assert_includes text,"'--ipv4','--noproxy','*'"
     assert_includes text,'identity==core_process_identity(pid)'
+    assert_includes text,'candidate_core==core'
     assert_includes text,'owner==listener_evidence(pid,port)'
     assert_includes text,"coverage_status=='LIVE_LEAF_NAME_COVERAGE_PASS'"
     assert_includes text,'SAME_LEAF_AUTHENTICATED=NO'
