@@ -69,7 +69,12 @@ def probe(proxy_url: str, timeout: int = 8) -> tuple[list[dict], list[str]]:
             if len(raw) > 16384:
                 raise ValueError("response too large")
             payload = json.loads(raw)
-            ip = str(ipaddress.ip_address(str(payload["ip"])))
+            address = ipaddress.ip_address(str(payload["ip"]))
+            # The P0 location check explicitly requires an IPv4 egress. A
+            # dual-stack geo endpoint returning IPv6 is NOT IPv4 evidence.
+            if not isinstance(address, ipaddress.IPv4Address) or not address.is_global:
+                raise ValueError("not_public_ipv4_egress")
+            ip = str(address)
             cc = str(payload[country_field]).upper()
             if not re.fullmatch(r"[A-Z]{2}", cc):
                 raise ValueError("invalid ISO country code")
@@ -79,6 +84,17 @@ def probe(proxy_url: str, timeout: int = 8) -> tuple[list[dict], list[str]]:
     return results, errors
 
 
+def is_public_ipv4(value: object) -> bool:
+    """Validate the IP family and publicly routable IPv4 range."""
+    if not isinstance(value, str):
+        return False
+    try:
+        address = ipaddress.ip_address(value)
+        return isinstance(address, ipaddress.IPv4Address) and address.is_global
+    except ValueError:
+        return False
+
+
 def classify(name: str, observations: list[dict], errors: list[str]) -> dict:
     """Name/real egress are independent. A country mismatch is NOT unusable.
 
@@ -86,24 +102,35 @@ def classify(name: str, observations: list[dict], errors: list[str]) -> dict:
     separately. A geolocation probe alone cannot certify service accessibility.
     """
     claim = advertised_country(name)
-    sources = {r.get("source") for r in observations}
-    ips = {r.get("ip") for r in observations}
-    countries = {r.get("country") for r in observations}
+    observations = observations if isinstance(observations, list) else []
+    entries = [r for r in observations if isinstance(r, dict)]
+    sources = [r.get("source") for r in entries]
+    ips = [r.get("ip") for r in entries]
+    countries = [r.get("country") for r in entries]
+    safe_ips = {ip for ip in ips if is_public_ipv4(ip)}
     record = {
         "name": name, "claimed_country": claim, "observed_country": None,
-        "observed_ips": sorted(ip for ip in ips if ip),
-        "evidence_sources": sorted(src for src in sources if src),
+        "observed_ips": sorted(safe_ips),
+        "evidence_sources": sorted(x for x in set(sources) if isinstance(x, str)),
         "egress_verified": False,
         "status": "unknown", "probe_errors": errors,
-        "service_availability": {},  # no platform claims without separate checks
+        "service_availability": {},  # platform checks are independent
     }
-    if sources != {"ipinfo", "ipapi"}:
-        record["reason"] = "insufficient_sources"
-    elif len(ips) != 1 or len(countries) != 1:
+    # Exactly two distinct provider observations are required. Never promote
+    # IPv6, RFC1918, test-only or duplicate-provider evidence to IPv4 PASS.
+    if errors:
+        record["reason"] = "probe_errors_present"
+    elif len(entries) != 2 or len(observations) != 2 or sorted(sources) != ["ipapi", "ipinfo"]:
+        record["reason"] = "insufficient_or_duplicate_sources"
+    elif not all(is_public_ipv4(ip) for ip in ips):
+        record["reason"] = "nonpublic_or_non_ipv4_egress"
+    elif not all(isinstance(cc, str) and re.fullmatch(r"[A-Z]{2}", cc) for cc in countries):
+        record["reason"] = "invalid_country"
+    elif len(safe_ips) != 1 or len(set(countries)) != 1:
         record["status"] = "inconsistent"
         record["reason"] = "geolocation_or_egress_conflict"
     else:
-        actual = next(iter(countries))
+        actual = countries[0]
         record["observed_country"] = actual
         record["egress_verified"] = True
         if claim is None:
