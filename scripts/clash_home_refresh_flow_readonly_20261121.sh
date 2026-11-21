@@ -59,7 +59,7 @@ script_names.each do |name|
     matched=0
     lines.each_with_index do |line,i|
       next if line.lstrip.start_with?('#')
-      present=tags.filter_map { |label,re| label if re.match?(line) }
+      present=tags.select { |label,re| re.match?(line) }.map { |pair| pair[0] }
       next if present.empty?
       matched += 1
       puts "  L#{i+1}_OPS=#{present.join(',')}" if matched<=45
