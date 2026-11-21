@@ -14,12 +14,14 @@ state() { docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null; }
 [ "$(img "$BACKUP")" = "$OLD_ID" ] || hold 'original backup container missing or changed'
 [ "$(state "$BACKUP")" = false ] || hold 'old backup is already running'
 if docker container inspect "$FAILED_NEW" >/dev/null 2>&1; then hold 'held-new container name already exists'; fi
+command -v docker >/dev/null 2>&1 || hold 'docker unavailable'
+command -v curl >/dev/null 2>&1 || hold 'curl unavailable'
 echo 'ROLLBACK_PREFLIGHT=PASS'
 
 # Keep the old container unchanged; park new so diagnostic state can be inspected.
 docker update --restart=no "$LIVE" >/dev/null || hold 'cannot change new restart policy'
 if [ "$(state "$LIVE")" = true ]; then
-  docker stop -t 10 "$LIVE" >/dev/null || hold 'cannot stop new container'
+  docker stop -t 10 "$LIVE" >/dev/null || { docker update --restart=always "$LIVE" >/dev/null 2>&1 || true; hold 'cannot stop new container; original restart policy attempted'; }
 fi
 docker rename "$LIVE" "$FAILED_NEW" || {
   docker update --restart=always "$LIVE" >/dev/null 2>&1 || true
