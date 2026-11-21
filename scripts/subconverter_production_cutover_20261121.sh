@@ -1,6 +1,7 @@
 #!/bin/sh
 # One-time iStoreOS subconverter 0.9.9 production cutover.
 # Fixed old/new image IDs, exact old runtime contract, guarded rollback.
+# Docker HostConfig.NetworkMode=default means omit --network (Docker default bridge), not --network default.
 # Does not modify OpenClash, other Docker containers, firewall, DNS or subscription data.
 set -eu
 
@@ -67,7 +68,7 @@ done
 [ "$(image "$OLD")" = "$OLD_ID" ] || die 'old container image drifted'
 [ "$(docker image inspect -f '{{.Id}}' "$NEW_TAG" 2>/dev/null)" = "$NEW_ID" ] || die 'verified candidate image missing or changed'
 docker image inspect "$OLD_ID" >/dev/null 2>&1 || die 'old rollback image missing'
-docker network inspect default >/dev/null 2>&1 || die 'original Docker network not available'
+docker network inspect bridge >/dev/null 2>&1 || die 'Docker default bridge network not available'
 if docker container inspect "$BACKUP" >/dev/null 2>&1; then die 'backup name already exists; avoid repeated cutover'; fi
 
 [ "$(old_field '{{.HostConfig.NetworkMode}}')" = default ] || die 'network drift'
@@ -94,7 +95,7 @@ started=1
 docker stop -t 10 "$OLD" >/dev/null || die 'failed stopping old container'
 docker rename "$OLD" "$BACKUP" || die 'failed preserving old container under backup name'
 docker update --restart=no "$BACKUP" >/dev/null || die 'failed disabling automatic restart on stopped backup'
-docker run -d --name "$OLD" --restart=no --network default \
+docker run -d --name "$OLD" --restart=no \
   -p 25500:25500 -w /base -e TZ=CST-8 \
   "$NEW_ID" /bin/sh -c subconverter >/dev/null || die 'new container failed to start'
 
