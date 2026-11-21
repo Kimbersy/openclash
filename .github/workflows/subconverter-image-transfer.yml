@@ -1,9 +1,6 @@
 name: One-time subconverter image transfer
 
 on:
-  push:
-    paths:
-      - .github/workflows/subconverter-image-transfer.yml
   workflow_dispatch:
 
 permissions:
@@ -17,14 +14,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [amd64, arm64]
+        arch: [amd64]
     env:
       IMAGE: asdlokj1qpi23/subconverter:0.9.9
       ARCH: ${{ matrix.arch }}
     steps:
-      - name: Enable multi-architecture testing
-        uses: docker/setup-qemu-action@v3
-
       - name: Pull the published Docker Hub tag
         shell: bash
         run: |
