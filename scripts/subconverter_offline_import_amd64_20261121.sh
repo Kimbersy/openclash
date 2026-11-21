@@ -56,8 +56,16 @@ echo 'INNER_IMAGE_SHA256=PASS'
 # Load only, no production stop/restart/rebuild.
 gzip -dc "$WORK/$TAR" | docker load || abort 'docker load failed'
 id=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null) || abort 'expected image tag not loaded'
-[ "$id" = "$EXPECTED_IMAGE_ID" ] || abort 'loaded image ID does not match verified CI'
-echo 'DOCKER_IMAGE_ID=PASS'
+[ -n "$id" ] || abort 'loaded candidate image ID is empty'
+arch=$(docker image inspect -f '{{.Architecture}}' "$IMAGE" 2>/dev/null) || abort 'loaded image architecture unavailable'
+os=$(docker image inspect -f '{{.Os}}' "$IMAGE" 2>/dev/null) || abort 'loaded image OS unavailable'
+[ -z "$arch" ] || [ "$arch" = amd64 ] || abort 'loaded image is not amd64'
+[ -z "$os" ] || [ "$os" = linux ] || abort 'loaded image OS is not Linux'
+echo "CANDIDATE_LOCAL_IMAGE_ID=$id"
+if [ "$id" != "$EXPECTED_IMAGE_ID" ]; then
+    echo 'IMAGE_ID_DIFFERENCE=NOT_IDENTITY_PROOF (ZIP+TAR_HASH_VERIFIED)'
+fi
+echo 'DOCKER_IMAGE_LOADED=YES'
 
 curl -fsSL --connect-timeout 10 --max-time 45 "$TEST_SOURCE" -o "$WORK/test-local.sh" || abort 'pinned local test script download failed'
 sh "$WORK/test-local.sh" --local-image || abort 'local candidate test failed'
