@@ -63,7 +63,7 @@ trap 'exit 1' HUP INT TERM
 mkdir "$SAVE" || stop 'cannot create root-only backup directory'
 chmod 700 "$SAVE" || stop 'cannot restrict backup directory'
 cp -p "$CACHE" "$SAVE/merged.yaml.before" || stop 'cannot back up current YAML'
-chmod 600 "$SAVE/merged.yaml.before" || stop 'cannot protect backup'
+# Backup directory is mode 0700; preserve the original file mode/owner for rollback.
 cmp -s "$CACHE" "$SAVE/merged.yaml.before" || stop 'backup checksum not matching'
 
 curl --noproxy '*' -fsS --connect-timeout 3 --max-time 30 "$HTTP" -o "$SAVE/served.before" || stop 'cannot read live 18080 response'
