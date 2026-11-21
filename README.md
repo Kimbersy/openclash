@@ -18,12 +18,16 @@
 | [Clash-Li.ini](Clash-Li.ini) | 现役规则转换模板；修改前须守住已有策略组与客户端行为 |
 | [generated/Clash-Meta-Android.template.yaml](generated/Clash-Meta-Android.template.yaml) | Android/Mihomo **公开占位模板**，真实订阅 URL 由独立私有 Worker 的 KV 等运行路径处理 |
 | [generated/Shadowrocket.conf](generated/Shadowrocket.conf) | 由生成脚本产生的 iOS 配置，跟 Worker 的 Android `/config` 不同 |
-| [scripts](scripts) | 生成、匿名只读诊断、subconverter/AnyTLS 切换与回滚候选；**历史安装器禁止重复运行** |
+| [scripts](scripts) | 通用 Android/Shadowrocket 配置生成器继续公开；家庭设备操作/发布脚本在本分支仅保留**不可执行的安全占位**，原文已迁入私有索引 |
 | [list](list) | 规则列表 |
-| [docs](docs) | **历史技术设计/运行维护背景**；日期早于最新用户实机回执的状态不得覆盖已完成验收 |
+| [docs](docs) | 历史专属家庭网络/AI 运维文档仅保留迁移说明，完整内容已迁入私有索引；以带时间的真实验收为准 |
 | [.github/workflows](.github/workflows) | CI 生成配置或手工镜像转运；不直接等同于 iStoreOS/Cloudflare 生产发布 |
 
 **已知业务结果**：2026-11-21 ClashMate AnyTLS 连接由用户确认正常；原有服务端离线缓存刷新及 A01 SNI 已验。此事项结案，与更大范围的 AI P0 自动节点管理（仍未最终验收）分别维护。
+
+## 本次安全归档（2026-11-22）
+
+已将 5 份家庭专属技术文档、22 个历史设备操作脚本及 1 个配套测试原样保存至私有 [Clash 安全归档](https://github.com/Kimbersy/home-it-index/tree/main/docs/clash/private-archive)（需授权）；公开 main 上的原路径仅保留说明和拒绝执行的占位脚本。**不要将历史旧版本的脚本作为当前安装入口**。Git 旧历史提交仍可公开访问，不能误称已消除历史暴露；正式设备/订阅运行不受本次仓库源码归档影响。当前生成配置与公开 Raw 分发路径保持不变。
 
 ## Public / Private 边界
 

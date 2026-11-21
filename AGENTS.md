@@ -11,6 +11,10 @@
 
 The private source of truth may not be accessible without authorization. **Never replace it with guesses.** Local Git content and CI prove source only. Router, ClashMate, Cloudflare and live routing acceptance require separately documented dated receipts.
 
+## PRIVATE_DEVICE_ARCHIVE / household-specific source
+
+2026-11-22 已将本仓库公开 main 的历史家庭设备操作脚本、相应测试及专属技术/网络维护文档私有归档到 https://github.com/Kimbersy/home-it-index/tree/main/docs/clash/private-archive 。公开 main 的相同路径现在只能显示脱敏说明或安全拒绝执行，不代表仍可用于安装；保留一般客户端生成源码与公开模板/规则。Git 历史中的旧版本仍是公开的，未经另外获批的历史清理不得强制改写 Git 或破坏已发固定 SHA 回执。
+
 ## Guardrails
 
 - Preserve active `Clash-Li.ini`, generated Android/Shadowrocket, Xbox/AI/Telegram/other normal groups and public Raw consumers unless a specific reviewed modification authorizes changes.
