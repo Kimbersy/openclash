@@ -7,6 +7,12 @@ OLD='nostalgic_pasteur'
 TEST='subconverter-sni-test-20261121'
 IMAGE='asdlokj1qpi23/subconverter:0.9.9'
 ENDPOINT='http://127.0.0.1:25501/sub'
+mode='pull'
+case "${1-}" in
+  '') ;;
+  --local-image) mode='local' ;;
+  *) echo 'Usage: sh subconverter_sni_timezone_candidate_check.sh [--local-image]'; exit 1 ;;
+esac
 created=0
 cleanup() {
     if [ "$created" -eq 1 ]; then
@@ -30,9 +36,15 @@ if docker container inspect "$TEST" >/dev/null 2>&1; then
     echo 'HOLD: temporary test container name already exists; not modifying it'; exit 1
 fi
 
-echo 'CANDIDATE=PULLING_NO_PRODUCTION_CHANGE'
-docker pull "$IMAGE" >/dev/null || { echo 'HOLD: candidate pull failed'; exit 1; }
-id=$(docker image inspect -f '{{.Id}}' "$IMAGE") || exit 1
+if [ "$mode" = 'local' ]; then
+    echo 'CANDIDATE=LOCAL_IMAGE_NO_PULL'
+else
+    echo 'CANDIDATE=PULLING_NO_PRODUCTION_CHANGE'
+    docker pull "$IMAGE" >/dev/null || { echo 'HOLD: candidate pull failed'; exit 1; }
+fi
+id=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null) || {
+    echo 'HOLD: candidate image not present locally'; exit 1;
+}
 [ -n "$id" ] || { echo 'HOLD: candidate has no image ID'; exit 1; }
 echo "CANDIDATE_IMAGE_ID=$id"
 docker run -d --name "$TEST" --restart=no \
