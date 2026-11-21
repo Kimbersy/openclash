@@ -1,0 +1,94 @@
+name: One-time subconverter image transfer
+
+on:
+  push:
+    paths:
+      - .github/workflows/subconverter-image-transfer.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Pull, test and package (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    env:
+      IMAGE: asdlokj1qpi23/subconverter:0.9.9
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Enable multi-architecture testing
+        uses: docker/setup-qemu-action@v3
+
+      - name: Pull the published Docker Hub tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform "linux/${ARCH}" "${IMAGE}"
+          docker image inspect --format 'ImageID={{.Id}} Architecture={{.Architecture}} OS={{.Os}}' "${IMAGE}"
+          actual="$(docker image inspect --format '{{.Architecture}}' "${IMAGE}")"
+          test "${actual}" = "${ARCH}"
+
+      - name: Validate AnyTLS SNI and UTC+8 using synthetic data
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name subconverter-validation \
+            --platform "linux/${ARCH}" \
+            -e TZ=CST-8 \
+            -p 127.0.0.1:25501:25500 "${IMAGE}" >/dev/null
+          trap 'docker rm -f subconverter-validation >/dev/null 2>&1 || true' EXIT
+          ok=0
+          for i in $(seq 1 30); do
+            if curl --noproxy '*' -fsS --max-time 2 http://127.0.0.1:25501/version >/dev/null; then
+              ok=1
+              break
+            fi
+            sleep 2
+          done
+          test "${ok}" = 1
+          docker exec subconverter-validation date '+%z' | grep -Fx '+0800'
+          curl --noproxy '*' -fsSG --max-time 20 \
+            --data-urlencode 'target=clash' \
+            --data-urlencode 'list=true' \
+            --data-urlencode 'url=anytls://dummy-password@node.example.invalid:8443?sni=cert.example.invalid#TEST-ANYTLS-SNI' \
+            http://127.0.0.1:25501/sub > /tmp/synthetic-output.yaml
+          grep -F 'TEST-ANYTLS-SNI' /tmp/synthetic-output.yaml >/dev/null
+          grep -E 'sni:[[:space:]]*cert\.example\.invalid' /tmp/synthetic-output.yaml >/dev/null
+          echo "SYNTHETIC_ANYTLS_SNI=PASS"
+          echo "TZ_OFFSET=+0800"
+
+      - name: Create checksummed Docker load archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="subconverter-0.9.9-${ARCH}.docker.tar.gz"
+          docker save "${IMAGE}" | gzip -1 > "${file}"
+          sha256sum "${file}" > "${file}.sha256"
+          {
+            echo "SOURCE_IMAGE=${IMAGE}"
+            echo "PLATFORM=linux/${ARCH}"
+            echo "Image ID:"
+            docker image inspect --format '{{.Id}}' "${IMAGE}"
+            echo "Repo Digests:"
+            docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "${IMAGE}"
+            echo "DEVICE_TEST=NOT_RUN"
+            echo "CI_SYNTHETIC_ANYTLS_SNI=PASS"
+            echo "CI_TZ_OFFSET=+0800"
+          } > "${file}.metadata.txt"
+
+      - name: Make verified image archive downloadable
+        uses: actions/upload-artifact@v4
+        with:
+          name: subconverter-0.9.9-${{ matrix.arch }}-verified
+          path: |
+            subconverter-0.9.9-${{ matrix.arch }}.docker.tar.gz
+            subconverter-0.9.9-${{ matrix.arch }}.docker.tar.gz.sha256
+            subconverter-0.9.9-${{ matrix.arch }}.docker.tar.gz.metadata.txt
+          retention-days: 7
+          if-no-files-found: error
