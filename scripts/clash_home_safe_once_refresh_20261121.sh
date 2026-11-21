@@ -18,7 +18,7 @@ passed=0
 
 stop() { echo "HOLD: $1"; exit 1; }
 if [ ! -d "$ROOT" ] || [ -L "$ROOT" ]; then stop 'expected clash-home directory unavailable'; fi
-for c in docker curl ruby cp mv cmp mkdir rmdir chmod wc; do
+for c in docker curl ruby cp mv cmp mkdir rmdir chmod wc tr rm; do
   command -v "$c" >/dev/null 2>&1 || stop "command missing: $c"
 done
 [ -f "$ROOT/refresh-current.sh" ] && [ ! -L "$ROOT/refresh-current.sh" ] || stop 'original refresh entrypoint missing'
@@ -98,7 +98,7 @@ else
   echo 'HOLD_ORIGINAL_REFRESH_FAILED_CHECK_PRIVATE_LOG_ON_ROUTER'
   exit 1
 fi
-[ -s "$CACHE" ] || stop 'refresh yielded empty cache'
+[ -s "$CACHE" ] && [ ! -L "$CACHE" ] || stop 'refresh yielded empty cache or symlink'
 
 # Validate revised cache against backup before considering cutover successful.
 ruby - "$SAVE/merged.yaml.before" "$CACHE" <<'RUBY'
