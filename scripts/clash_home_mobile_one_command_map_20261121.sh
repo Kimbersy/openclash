@@ -21,7 +21,6 @@ ops={
 'CACHE'=>/merged\.yaml|cache\/|CACHE|os\.replace|rename\(|replace\(/i,
 'VALIDATION'=>/yaml\.safe_load|safe_load|yaml\.load|proxies|proxy-groups|sni|AnyTLS/i,
 'ERROR_GUARD'=>/except\b|trap\b|set -e|return 1|exit 1|raise\b/i,
-'NOTIFICATION'=>/echo|logger|print\(|logging\./i,
 'ENV'=>/os\.environ|os\.getenv|export\b|source\s+[^ ]|^\s*\.\s+/i
 }
 control = /(?:^|\s)(if|elif|else|fi|then|for|while|do|done|case|esac|try|except|finally|return|break|continue|def|function|with|trap)(?:\s|:|\(|$)/
@@ -41,6 +40,8 @@ names.each do |name|
   lines=File.binread(path).force_encoding('UTF-8').scrub.lines
   puts "FILE=#{name} STATUS=PRESENT LINES=#{lines.length} BYTES=#{size}"
   matches=0
+  shown=0
+  limit = name=='watch-clash-li.sh' ? 32 : (name=='refresh.py' ? 25 : 10)
   lines.each_with_index do |raw,i|
     s=raw.strip
     next if s.empty?||s.start_with?('#')
@@ -64,9 +65,14 @@ names.each do |name|
     end
     next if found.empty?
     matches+=1
-    puts "  L#{i+1}=#{found.uniq.join(',')}"
+    signal=found.any?{|t| ['REFRESH_ENTRY','WATCH_TRIGGER','FILE_STABILITY','LOCK','FETCH','SUBCONVERTER','SOURCE','CACHE','VALIDATION','ENV','ERROR_GUARD'].include?(t)}
+    next unless signal
+    if shown<limit
+      puts "  L#{i+1}=#{found.uniq.join(',')}"
+      shown+=1
+    end
   end
-  puts "  ANALYZED_LINES=#{matches}"
+  puts "  ANALYZED_LINES=#{matches} PRINTED=#{shown} CAP=#{limit}"
   summary[name]=matches
 end
 puts 'REPORT=SOURCE_MAP_ONLY_NO_VALUES_NO_CHANGES'
