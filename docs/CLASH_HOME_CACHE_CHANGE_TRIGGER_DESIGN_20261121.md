@@ -69,3 +69,12 @@ ClashMate ──HTTP GET 18080──> 只读上一份已发布 merged.yaml
 - `AUTO_TRIGGER_IMPLEMENTED=NO`
 - `CURRENT_18080_A01_SNI=FAIL_5_OF_5`
 - `OLD_ONE_TIME_REFRESH_SCRIPT=SUPERSEDED_DO_NOT_RUN`
+
+## 2026-11-21 用户要求收敛：极简实现（优先于前面过宽的细节）
+
+用户明确反对复制PS Store过度复杂的工具、状态机与反复发布。**本轮真实交付只扩展现役 `watch-clash-li.sh`，不增加第二套监控器/刷新器/调度或新的容器**；`refresh-current.sh`、`refresh.py`、`merge.py`与04:30原有任务原则上不改，复用现有watch已经具备的锁/错误回退。只针对已能定位的实际文件更新补入内容指纹检测；同时把实际运行subconverter镜像ID作为需刷新输入，使11月21日的转换器升级不再漏检。变更检查时不请求完整25500在线转换，既有watch触发后台刷新，手机18080继续只读缓存。失败必须保持旧缓存和上次成功指纹，成功须通过A01 SNI验证。**暂不解决无法廉价检测远端文件版本的所谓“实时监听”；04:30已有任务负责远端定期更新。**
+
+仓库没有直接取得路由器现行`watch-clash-li.sh`/ `refresh.py`正文，只有匿名标签实机回执；不猜测原有脚本的目标路径、变量、锁和Cron语义。在取得**一份已去除私密URL/凭据的这三个现行小脚本源码**前，不发布可运行生产补丁。已提交但未运行的`scripts/clash_home_input_change_gate_v1.sh`（Git 5a9d2e02）及`tests/test_clash_home_input_change_gate_v1.py`（Git e3dd411e）只属不采用的候选样本，**不部署也不继续扩展**，且“8项测试通过”此前仅是助手无工具支撑表述，**纠正为 NOT_RUN**。
+
+下一步：确认源码，做一个原watch最小差异，单次有效测试与备份验收，避免重复调整。最终用户需求：新订阅触发更新，未变保持04:30，旧缓存失败保留，18080 A01 SNI正确，ClashMate实际连接恢复。
+
